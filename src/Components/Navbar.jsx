@@ -16,7 +16,9 @@ export const Navbar = () => {
       left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 1000,
-      width: 'fit-content'
+      width: '50vw',
+      maxWidth: '1200px',
+      boxSizing: 'border-box'
     }}>
       <div style={{
         display: 'flex',
@@ -48,89 +50,89 @@ export const Navbar = () => {
           gap: '2rem',
           alignItems: 'center'
         }}>
-          <a 
-            href="#about" 
+          <a
+            href="#about"
             onClick={(e) => handleNavClick(e, 'about')}
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'none', 
-              fontSize: '1rem', 
-              transition: 'opacity 0.3s',
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontSize: '1rem',
+              transition: 'opacity 0.2s, color 0.2s',
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
-          >About Me</a>
-          <a 
-            href="#education" 
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
+          >About </a>
+          <a
+            href="#education"
             onClick={(e) => handleNavClick(e, 'education')}
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'none', 
-              fontSize: '1rem', 
-              transition: 'opacity 0.3s',
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontSize: '1rem',
+              transition: 'opacity 0.2s, color 0.2s',
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Education</a>
-          <a 
-            href="#experience" 
+          <a
+            href="#experience"
             onClick={(e) => handleNavClick(e, 'experience')}
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'none', 
-              fontSize: '1rem', 
-              transition: 'opacity 0.3s',
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontSize: '1rem',
+              transition: 'opacity 0.2s, color 0.2s',
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Experience</a>
-          <a 
-            href="#skills" 
+          <a
+            href="#skills"
             onClick={(e) => handleNavClick(e, 'skills')}
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'none', 
-              fontSize: '1rem', 
-              transition: 'opacity 0.3s',
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontSize: '1rem',
+              transition: 'opacity 0.2s, color 0.2s',
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Skills</a>
-          <a 
-            href="#projects" 
+          <a
+            href="#projects"
             onClick={(e) => handleNavClick(e, 'projects')}
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'none', 
-              fontSize: '1rem', 
-              transition: 'opacity 0.3s',
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontSize: '1rem',
+              transition: 'opacity 0.2s, color 0.2s',
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Projects</a>
-          <a 
-            href="#coding-profiles" 
+          <a
+            href="#coding-profiles"
             onClick={(e) => handleNavClick(e, 'coding-profiles')}
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'none', 
-              fontSize: '1rem', 
-              transition: 'opacity 0.3s',
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontSize: '1rem',
+              transition: 'opacity 0.2s, color 0.2s',
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Profiles</a>
         </div>
       </div>
