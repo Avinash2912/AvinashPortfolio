@@ -61,7 +61,7 @@ export const Navbar = () => {
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = '#4EA8F8'; }}
             onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >About </a>
           <a
@@ -75,7 +75,7 @@ export const Navbar = () => {
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = '#4EA8F8'; }}
             onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Education</a>
           <a
@@ -89,7 +89,7 @@ export const Navbar = () => {
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = '#4EA8F8'; }}
             onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Experience</a>
           <a
@@ -103,7 +103,7 @@ export const Navbar = () => {
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = '#4EA8F8'; }}
             onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Skills</a>
           <a
@@ -117,7 +117,7 @@ export const Navbar = () => {
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = '#4EA8F8'; }}
             onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Projects</a>
           <a
@@ -131,7 +131,7 @@ export const Navbar = () => {
               fontWeight: '500',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = 'blue'; }}
+            onMouseEnter={(e) => { e.target.style.opacity = '0.7'; e.target.style.color = '#4EA8F8'; }}
             onMouseLeave={(e) => { e.target.style.opacity = '1'; e.target.style.color = '#fff'; }}
           >Profiles</a>
         </div>
