@@ -51,7 +51,7 @@ export const Hero = () => {
       </div>
 
       {/* Hero Content */}
-      <div style={{
+      <div className="hero-content" style={{
         position: 'relative',
         zIndex: 10,
         height: '100vh',
@@ -153,14 +153,26 @@ export const Hero = () => {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(62, 148, 253, 0.4);
           }
+
+          /* Push content a bit lower on medium and small screens */
+          @media (max-width: 1024px) {
+            .hero-content { padding-top: 10vh; }
+          }
+          @media (max-width: 768px) {
+            .hero-content { padding-top: 14vh; }
+          }
+          @media (max-width: 640px) {
+            .hero-content { padding-top: 18vh; }
+          }
         `}</style>
 
         {/* Buttons */}
-        <div style={{
+        <div className="hero-buttons" style={{
           display: 'flex',
           gap: '1rem',
           flexWrap: 'wrap',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          marginTop: '1rem'
         }}>
           <button 
             onClick={handleCopyEmail}
