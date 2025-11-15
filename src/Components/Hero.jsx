@@ -183,8 +183,17 @@ export const Hero = () => {
             <span>avinashjha19@outlook.com</span>
             <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
           </button>
-          <button 
+          {/*
+            Resume link: replace the `href` below with a shareable Drive file link
+            (Open the file in Drive → Share → Get link → set to "Anyone with the link" → Copy link).
+            The current href points to the Drive home. Replace with your file's share URL so users see the resume directly.
+          */}
+          <a
             className="resume-button"
+            href="https://drive.google.com/file/d/1wf3vZNyKhdNjGOcV7okkZttKeg-0hWkW/view?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            role="button"
             style={{
               padding: '1.2rem 3rem',
               fontSize: '1.1rem',
@@ -196,10 +205,15 @@ export const Hero = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
               borderRadius: '50px',
               cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}>
-             Resume 
-          </button>
+              transition: 'all 0.3s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none'
+            }}
+          >
+            Resume
+          </a>
         </div>
       </div>
     </div>

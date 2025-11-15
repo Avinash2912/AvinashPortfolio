@@ -1,0 +1,23 @@
+/* Responsive tweaks */
+@media (max-width: 640px) {
+	/* Reduce hero heading size on small screens */
+	h1 {
+		font-size: 2rem !important;
+	}
+
+	/* Make hero buttons more touch-friendly */
+	.email-button, .resume-button {
+		padding: 0.9rem 1.6rem !important;
+		font-size: 0.95rem !important;
+	}
+
+	/* Ensure nav links are comfortably tappable */
+	nav a {
+		padding: 0.5rem 0.6rem !important;
+	}
+}
+
+@media (max-width: 420px) {
+	h1 { font-size: 1.8rem !important; }
+}
+

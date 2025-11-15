@@ -6,14 +6,13 @@ export const Experience = () => {
   const experiences = [
     {
       role: 'Associate Software Developer',
-      company: 'Makse Services Private Limited',
+      company: 'Makse Services Pvt Ltd.',
       duration: 'October 2025 - Present',
       details: (
         <>
-          <span className="text-[#22c55e]">▸</span> Led development of scalable web applications using React and Node.js.{'\n\n'}
-          <span className="text-[#22c55e]">▸</span> Implemented microservices architecture improving system performance by 40%.{'\n\n'}
-          <span className="text-[#22c55e]">▸</span> Mentored junior developers and conducted code reviews.{'\n\n'}
-          <span className="text-[#22c55e]">▸</span> Collaborated with cross-functional teams to deliver high-quality products.
+          <span className="text-[#22c55e]">▸</span> Working on Workday — extending applications and integrating features.{'\n\n'}
+          <span className="text-[#22c55e]">▸</span> Completed onboarding trainings and technical certifications.{'\n\n'}
+          <span className="text-[#22c55e]">▸</span> Building internal apps and contributing to platform improvements.
         </>
       )
     },
@@ -97,11 +96,17 @@ export const Experience = () => {
               </div>
               <div>
                 <span className="text-[#60a5fa]">WHERE</span>{' '}
-                <span className="text-[#a3e635]">wx.role</span>{' '}
-                <span className="text-gray-500">=</span>{' '}
-                <span className="text-[#fbbf24]">'Developer Intern'</span>
+                <span className="text-[#a3e635]">LOWER(wx.role)</span>{' '}
+                <span className="text-gray-500">LIKE</span>{' '}
+                <span className="text-[#fbbf24]">"%developer%"</span>{' '}
+                <span className="text-gray-500">OR</span>{' '}
+                <span className="text-[#a3e635]">LOWER(wx.role)</span>{' '}
+                <span className="text-gray-500">LIKE</span>{' '}
+                <span className="text-[#fbbf24]">"%intern%"</span>
                 <span className="text-gray-500">;</span>
               </div>
+
+              
             </div>
 
             {/* Hint Text */}
