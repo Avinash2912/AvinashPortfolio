@@ -1,327 +1,748 @@
-import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDatabase } from '@fortawesome/free-solid-svg-icons';
+import React, { useState, useEffect, useRef } from 'react';
 
-const About = () => {
-  const [typedCommands, setTypedCommands] = useState([]);
-  const [currentCommandIndex, setCurrentCommandIndex] = useState(0);
-  const [showCursor, setShowCursor] = useState(true);
-  const [autoExecute, setAutoExecute] = useState(false);
-  const [showCommands, setShowCommands] = useState(false);
-  const [copiedCommand, setCopiedCommand] = useState(null);
-  const [manualCommand, setManualCommand] = useState('');
-  const [manualExecutedCommands, setManualExecutedCommands] = useState([]);
+const TABS = {
+  profile: [
+    { key: 'name',       val: '"Avinash Jha"'               },
+    { key: 'role',       val: '"Associate Developer"'        },
+    { key: 'university', val: '"GGSIPU, Delhi"'              },
+    { key: 'stack',      val: '"MERN · Gen AI · DSA"'        },
+    { key: 'status',     val: '"Open to Work 🟢"'             },
+  ],
+  values: [
+    { key: '0', val: '"Collaboration"'       },
+    { key: '1', val: '"Continuous Learning"' },
+    { key: '2', val: '"Meaningful Impact"'   },
+    { key: '3', val: '"Mentorship"'          },
+  ],
+  goals: [
+    { key: 'seeking',   val: '"SDE & Full Stack Roles"'     },
+    { key: 'passion',   val: '"Building Scalable Products"' },
+    { key: 'available', val: '"Full-time & Freelance"'      },
+  ],
+};
 
-  const redisCommands = [
-    { 
-      command: 'HGETALL developer:avinash',
-      description: 'Get all profile information (name, role, university, etc.)',
-      response: [
-        '"name" "Avinash Jha"',
-        '"role" "Computer Science Engineering Student"',
-        '"university" "Bhagwan Parshuram Institute of Technology, GGSIPU, Delhi"',
-        '"passion" "Software Development, Problem-solving, Full-stack Development"',
-        '"stack" "MERN Stack"'
-      ]
-    },
-    {
-      command: 'LRANGE achievements:avinash 0 -1',
-      description: 'List all achievements and competition rankings',
-      response: [
-        '1) "AIR 26 - ZS Campus Beats Hackathon"',
-        '2) "Global Rank 157 - CodeChef Starters 132"',
-        '3) "Active Peer Mentoring & Collaboration"',
-        '4) "Building Scalable Solutions"'
-      ]
-    },
-    {
-      command: 'GET developer:avinash:experience',
-      description: 'Get experience summary',
-      response: ['"Practical experience through projects, internships, and competitions"']
-    },
-    {
-      command: 'SMEMBERS developer:avinash:values',
-      description: 'View core values and principles',
-      response: [
-        '1) "Collaboration"',
-        '2) "Mentorship"',
-        '3) "Continuous Learning"',
-        '4) "Meaningful Impact"'
-      ]
-    },
-    {
-      command: 'GET developer:avinash:looking_for',
-      description: 'See what opportunities I\'m seeking',
-      response: ['"Software Development Engineering & Full Stack Development opportunities to build impactful projects"']
-    }
-  ];
+export default function About() {
+  const [inView,     setInView]     = useState(false);
+  const [macOpen,    setMacOpen]    = useState(false);
+  const [typed,      setTyped]      = useState('');
+  const [typedRole,  setTypedRole]  = useState('');
+  const [showRole,   setShowRole]   = useState(false);
+  const [showStack,  setShowStack]  = useState(false);
+  const sectionRef = useRef(null);
 
-  const copyCommand = (command) => {
-    navigator.clipboard.writeText(command).then(() => {
-      setCopiedCommand(command);
-      setTimeout(() => setCopiedCommand(null), 2000);
-    }).catch(err => {
-      console.error('Failed to copy:', err);
-      // Fallback method
-      const textArea = document.createElement('textarea');
-      textArea.value = command;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        setCopiedCommand(command);
-        setTimeout(() => setCopiedCommand(null), 2000);
-      } catch (err) {
-        console.error('Fallback copy failed:', err);
-      }
-      document.body.removeChild(textArea);
-    });
-  };
-
-  // Cursor blink effect
   useEffect(() => {
-    const interval = setInterval(() => setShowCursor(prev => !prev), 500);
-    return () => clearInterval(interval);
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.08 }
+    );
+    if (sectionRef.current) obs.observe(sectionRef.current);
+    return () => obs.disconnect();
   }, []);
 
-  // Auto-execute commands with delay
+  // Open mac when section enters view
   useEffect(() => {
-    if (autoExecute && currentCommandIndex < redisCommands.length) {
-      const timer = setTimeout(() => {
-        setTypedCommands(prev => [...prev, redisCommands[currentCommandIndex]]);
-        setCurrentCommandIndex(prev => prev + 1);
-      }, currentCommandIndex === 0 ? 500 : 1500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [currentCommandIndex, redisCommands, autoExecute]);
+    if (!inView) return;
+    const t = setTimeout(() => setMacOpen(true), 400);
+    return () => clearTimeout(t);
+  }, [inView]);
 
-  const handleExecuteCommands = () => {
-    setAutoExecute(true);
-    setTypedCommands([]);
-    setCurrentCommandIndex(0);
-  };
+  // Type name after mac opens
+  useEffect(() => {
+    if (!macOpen) return;
+    const NAME = 'Avinash Jha';
+    let i = 0;
+    const t = setTimeout(() => {
+      const iv = setInterval(() => {
+        i++;
+        setTyped(NAME.slice(0, i));
+        if (i >= NAME.length) { clearInterval(iv); setShowRole(true); }
+      }, 75);
+      return () => clearInterval(iv);
+    }, 1700);
+    return () => clearTimeout(t);
+  }, [macOpen]);
 
-  const handleManualCommand = (e) => {
-    e.preventDefault();
-    const trimmedCommand = manualCommand.trim();
-    if (!trimmedCommand) return;
-
-    // Find matching command
-    const foundCommand = redisCommands.find(cmd => cmd.command === trimmedCommand);
-    
-    if (foundCommand) {
-      setManualExecutedCommands(prev => [...prev, foundCommand]);
-      setManualCommand('');
-    } else {
-      setManualExecutedCommands(prev => [...prev, {
-        command: trimmedCommand,
-        response: ['(error) ERR unknown command `' + trimmedCommand + '`']
-      }]);
-      setManualCommand('');
-    }
-  };
+  // Type role
+  useEffect(() => {
+    if (!showRole) return;
+    const ROLE = 'Associate Developer';
+    let i = 0;
+    const t = setTimeout(() => {
+      const iv = setInterval(() => {
+        i++;
+        setTypedRole(ROLE.slice(0, i));
+        if (i >= ROLE.length) { clearInterval(iv); setShowStack(true); }
+      }, 55);
+      return () => clearInterval(iv);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [showRole]);
 
   return (
-    <section id="about" className="relative min-h-screen py-20 px-6 overflow-hidden">
-      {/* Redis Red Background */}
-      <div className="absolute inset-0 bg-linear-to-b from-[#0f0f0f] via-[#1a0a0a] to-[#000000]"></div>
+    <section
+      id="about"
+      ref={sectionRef}
+      style={{ background: '#000', padding: '7rem 2rem', position: 'relative', overflow: 'hidden' }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
 
-      <div className="relative max-w-5xl mx-auto">
-        {/* Section Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-5xl md:text-6xl font-bold mb-4 flex items-center justify-center gap-4">
-            <FontAwesomeIcon icon={faDatabase} className="text-[#dc382d]" />
-            <span className="text-[#dc382d]">About Me</span>
-          </h2>
-          <div className="w-32 h-1 bg-[#dc382d] mx-auto rounded-full mb-6"></div>
-          <p className="text-gray-400 text-lg font-mono mb-4">redis-cli --connect developer:avinash</p>
-          
-          {/* Buttons */}
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            {!autoExecute && (
-              <button
-                onClick={handleExecuteCommands}
-                className="bg-[#dc382d] hover:bg-[#b92d23] text-white font-bold py-3 px-8 rounded-lg font-mono text-sm transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_rgba(220,56,45,0.5)] transform hover:scale-105"
-              >
-                ▶ EXECUTE ALL COMMANDS
-              </button>
-            )}
-            <button
-              onClick={() => setShowCommands(!showCommands)}
-              className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg font-mono text-sm transition-all duration-300 shadow-lg transform hover:scale-105"
-            >
-              {showCommands ? '✕ HIDE' : '📖 SHOW'} AVAILABLE COMMANDS
-            </button>
-          </div>
+        /* ═══════════════════════════════════════
+           BACKGROUND
+        ═══════════════════════════════════════ */
+        .about-glow {
+          position: absolute;
+          top: 40%; left: 60%;
+          transform: translate(-50%, -50%);
+          width: 800px; height: 500px;
+          border-radius: 50%;
+          background: radial-gradient(ellipse at center,
+            rgba(100,22,5,0.45) 0%,
+            rgba(65,12,3,0.22)  38%,
+            rgba(30,6,1,0.08)   65%,
+            transparent 80%
+          );
+          filter: blur(32px);
+          pointer-events: none;
+          z-index: 0;
+          animation: aboutGlowPulse 8s ease-in-out infinite;
+        }
+        @keyframes aboutGlowPulse {
+          0%,100% { opacity: 0.8; transform: translate(-50%,-50%) scale(1);    }
+          50%      { opacity: 1;   transform: translate(-50%,-50%) scale(1.06); }
+        }
+
+        /* ═══════════════════════════════════════
+           KEYFRAMES
+        ═══════════════════════════════════════ */
+        @keyframes revealUp {
+          from { opacity: 0; transform: translateY(48px); }
+          to   { opacity: 1; transform: translateY(0);    }
+        }
+        @keyframes revealLeft {
+          from { opacity: 0; transform: translateX(-52px); }
+          to   { opacity: 1; transform: translateX(0);      }
+        }
+        @keyframes revealRight {
+          from { opacity: 0; transform: translateX(52px); }
+          to   { opacity: 1; transform: translateX(0);    }
+        }
+        @keyframes borderGlow {
+          0%,100% { box-shadow: 0 0 0 1px rgba(224,90,28,0.12), 0 20px 50px rgba(0,0,0,0.5); }
+          50%      { box-shadow: 0 0 0 1px rgba(224,90,28,0.28), 0 28px 64px rgba(0,0,0,0.6); }
+        }
+        @keyframes dotPulse {
+          0%,100% { box-shadow: 0 0 5px rgba(74,222,128,0.5); }
+          50%      { box-shadow: 0 0 16px rgba(74,222,128,1);  }
+        }
+
+        /* ═══════════════════════════════════════
+           LAYOUT
+        ═══════════════════════════════════════ */
+        .about-inner {
+          max-width: 1100px;
+          margin: 0 auto;
+          position: relative;
+          z-index: 1;
+        }
+        .about-grid {
+          display: grid;
+          grid-template-columns: 1.05fr 0.95fr;
+          gap: 4rem;
+          align-items: start;
+        }
+        @media (max-width: 860px) {
+          .about-grid { grid-template-columns: 1fr; gap: 3rem; }
+        }
+
+        /* ═══════════════════════════════════════
+           HEADER
+        ═══════════════════════════════════════ */
+        .about-header {
+          margin-bottom: 3.8rem;
+          opacity: 0;
+        }
+        .about-header.in {
+          animation: revealUp 0.85s cubic-bezier(0.22,1,0.36,1) forwards;
+        }
+        .about-eyebrow {
+          font-size: 0.7rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 600;
+          letter-spacing: 0.24em;
+          text-transform: uppercase;
+          color: #e05a1c;
+          margin-bottom: 1rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .about-eyebrow::before, .about-eyebrow::after {
+          content: '';
+          display: inline-block;
+          width: 28px; height: 1px;
+          background: #e05a1c; opacity: 0.55;
+        }
+        .about-heading {
+          font-size: clamp(2.5rem, 4.8vw, 3.6rem);
+          font-weight: 400;
+          color: #fff;
+          font-family: 'Neue Machina', sans-serif;
+          letter-spacing: -0.02em;
+          margin-bottom: 0.8rem;
+          text-transform: capitalize;
+          line-height: 1.08;
+        }
+        .about-heading span { color: #e05a1c; }
+        .about-divider {
+          width: 44px; height: 2px;
+          background: linear-gradient(90deg, #e05a1c 0%, transparent 100%);
+          border-radius: 2px;
+        }
+
+        /* ═══════════════════════════════════════
+           LEFT COL
+        ═══════════════════════════════════════ */
+        .about-left {
+          opacity: 0;
+        }
+        .about-left.in {
+          animation: revealLeft 0.9s 0.18s cubic-bezier(0.22,1,0.36,1) forwards;
+        }
+        .about-bio {
+          font-size: 0.9rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 400;
+          color: rgba(255,255,255,0.52);
+          line-height: 1.9;
+          margin-bottom: 1.8rem;
+        }
+        .about-bio strong {
+          color: rgba(255,255,255,0.88);
+          font-weight: 600;
+        }
+
+        /* ═══════════════════════════════════════
+           RIGHT COL — MACBOOK
+        ═══════════════════════════════════════ */
+        .about-right {
+          opacity: 0;
+        }
+        .about-right.in {
+          animation: revealRight 0.9s 0.32s cubic-bezier(0.22,1,0.36,1) forwards;
+        }
+
+        /* MacBook 3D — Space Gray */
+        .macbook-scene {
+          perspective: 1600px;
+          perspective-origin: 50% -20%;
+          padding-top: 1rem;
+        }
+        .macbook-3d {
+          width: 100%;
+          max-width: 440px;
+          margin: 0 auto;
+          transform-style: preserve-3d;
+          transform: rotateX(6deg);
+        }
+
+        /* ── LID ── */
+        .mac-lid {
+          position: relative;
+          background: linear-gradient(170deg,
+            #4a4a4a 0%, #3a3a3a 30%,
+            #2e2e2e 70%, #252525 100%
+          );
+          border-radius: 12px 12px 2px 2px;
+          padding: 8px 8px 5px;
+          transform-origin: bottom center;
+          transform: rotateX(86deg);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.12),
+            inset 0 -1px 0 rgba(0,0,0,0.4),
+            0 -4px 20px rgba(0,0,0,0.5);
+          z-index: 2;
+        }
+        .mac-lid.open {
+          animation: macLidOpen 1.5s 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+        }
+        @keyframes macLidOpen {
+          0%   { transform: rotateX(86deg); }
+          100% { transform: rotateX(-22deg); }
+        }
+
+        /* Apple logo hint */
+        .mac-logo {
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          width: 28px; height: 28px;
+          opacity: 0.12;
+          background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+          border-radius: 50%;
+        }
+
+        /* Screen bezel */
+        .mac-bezel {
+          background: #0d0d0d;
+          border-radius: 6px;
+          aspect-ratio: 16 / 10;
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.04);
+        }
+        /* Screen glow */
+        .mac-bezel::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(ellipse at 50% 60%,
+            rgba(224,90,28,0.06) 0%,
+            transparent 65%
+          );
+          pointer-events: none;
+          z-index: 0;
+        }
+        /* Subtle screen glare */
+        .mac-bezel::after {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 35%;
+          background: linear-gradient(to bottom,
+            rgba(255,255,255,0.025) 0%,
+            transparent 100%
+          );
+          pointer-events: none;
+          z-index: 0;
+          border-radius: 6px 6px 0 0;
+        }
+
+        /* Camera */
+        .mac-camera {
+          position: absolute;
+          top: -16px; left: 50%; transform: translateX(-50%);
+          width: 6px; height: 6px;
+          background: #222;
+          border-radius: 50%;
+          box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+        }
+
+        /* Screen content */
+        .mac-screen-content {
+          position: relative;
+          z-index: 1;
+          opacity: 0;
+          padding: 1rem 1.3rem;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .mac-lid.open .mac-screen-content {
+          animation: screenFadeIn 0.6s 1.8s ease forwards;
+        }
+        @keyframes screenFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        .mac-line {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          color: rgba(255,255,255,0.28);
+          font-size: 0.7rem;
+          font-family: 'Manrope', sans-serif;
+          margin-bottom: 0.25rem;
+        }
+        .mac-prompt { color: #e05a1c; font-weight: 600; }
+        .mac-output-name {
+          font-family: 'Neue Machina', sans-serif;
+          font-size: clamp(1.3rem, 2.5vw, 1.6rem);
+          font-weight: 400;
+          color: #ffffff;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+          margin-bottom: 0.15rem;
+          min-height: 1.9rem;
+          text-shadow: 0 0 20px rgba(224,90,28,0.3);
+        }
+        .mac-output-role {
+          font-size: 0.78rem;
+          font-family: 'Manrope', sans-serif;
+          color: #e05a1c;
+          min-height: 1.1rem;
+          margin-bottom: 0.1rem;
+        }
+        .mac-output-stack {
+          font-size: 0.68rem;
+          font-family: 'Manrope', sans-serif;
+          color: rgba(255,255,255,0.35);
+          margin-top: 0.5rem;
+          letter-spacing: 0.05em;
+        }
+        .mac-cursor {
+          display: inline-block;
+          width: 1.5px; height: 0.9em;
+          background: #e05a1c;
+          margin-left: 1px;
+          vertical-align: middle;
+          animation: cursorBlink 0.85s step-end infinite;
+        }
+        @keyframes cursorBlink {
+          0%,100% { opacity: 1; } 50% { opacity: 0; }
+        }
+
+        /* ── HINGE ── */
+        .mac-hinge {
+          height: 4px;
+          background: linear-gradient(to bottom, #1a1a1a, #141414);
+          position: relative;
+          z-index: 3;
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.03),
+            0 -1px 0 rgba(0,0,0,0.6);
+        }
+
+        /* ── BASE / KEYBOARD ── */
+        .mac-base {
+          background: linear-gradient(180deg,
+            #3e3e3e 0%, #353535 40%,
+            #2d2d2d 100%
+          );
+          border-radius: 0 0 10px 10px;
+          position: relative;
+          padding: 10px 14px 7px;
+          box-shadow:
+            0 14px 50px rgba(0,0,0,0.8),
+            0 4px 16px rgba(0,0,0,0.5),
+            inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        /* Keyboard rows */
+        .mac-kbd-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          opacity: 0.25;
+          margin-bottom: 5px;
+        }
+        .mac-kbd-row {
+          display: flex;
+          gap: 2.5px;
+          justify-content: center;
+        }
+        .mac-key {
+          height: 5px;
+          background: rgba(255,255,255,0.15);
+          border-radius: 1.5px;
+          flex: 1;
+          max-width: 22px;
+        }
+        .mac-key.wide  { max-width: 36px; }
+        .mac-key.space { max-width: 100px; }
+        /* Trackpad */
+        .mac-trackpad {
+          width: 80px; height: 8px;
+          background: rgba(255,255,255,0.07);
+          border-radius: 3px;
+          margin: 0 auto;
+          border: 1px solid rgba(255,255,255,0.04);
+        }
+        /* Base glow */
+        .mac-glow-bottom {
+          width: 70%; height: 18px;
+          margin: 0 auto;
+          background: radial-gradient(ellipse,
+            rgba(224,90,28,0.18) 0%, transparent 70%
+          );
+          filter: blur(6px);
+          margin-top: 2px;
+        }
+        .terminal-card {
+          background: #080808;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 18px;
+          overflow: hidden;
+          animation: borderGlow 5s ease-in-out infinite;
+        }
+        .terminal-bar {
+          background: rgba(255,255,255,0.03);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          padding: 0.85rem 1.4rem;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+        }
+        .tbar-dot {
+          width: 11px; height: 11px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .tbar-title {
+          font-size: 0.72rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 400;
+          color: rgba(255,255,255,0.25);
+          margin-left: auto;
+          letter-spacing: 0.04em;
+        }
+        .terminal-tabs {
+          display: flex;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          padding: 0 1.4rem;
+        }
+        .term-tab {
+          font-size: 0.74rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 400;
+          color: rgba(255,255,255,0.32);
+          padding: 0.7rem 1rem;
+          cursor: pointer;
+          border: none;
+          border-bottom: 2px solid transparent;
+          background: none;
+          transition: color 0.22s, border-color 0.22s;
+          white-space: nowrap;
+          letter-spacing: 0.02em;
+        }
+        .term-tab:hover { color: rgba(255,255,255,0.58); }
+        .term-tab.active { color: #e05a1c; border-bottom-color: #e05a1c; }
+
+        .terminal-body {
+          padding: 1.5rem 1.7rem;
+          font-family: 'Manrope', sans-serif;
+          font-size: 0.8rem;
+          font-weight: 400;
+          line-height: 1;
+          min-height: 220px;
+        }
+        .term-prompt { color: rgba(224,90,28,0.7); user-select: none; }
+        .term-cmd    { color: rgba(255,255,255,0.38); }
+        .term-row {
+          display: flex;
+          gap: 1.2rem;
+          padding: 0.55rem 0.5rem;
+          border-radius: 6px;
+          transition: background 0.2s;
+        }
+        .term-row:hover { background: rgba(255,255,255,0.03); }
+        .term-key { color: rgba(255,255,255,0.26); min-width: 100px; flex-shrink: 0; }
+        .term-val { color: #cfb98a; }
+
+        .terminal-footer {
+          background: rgba(224,90,28,0.04);
+          border-top: 1px solid rgba(224,90,28,0.09);
+          padding: 0.7rem 1.7rem;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          font-size: 0.7rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 400;
+          color: rgba(255,255,255,0.25);
+        }
+        .footer-dot {
+          width: 7px; height: 7px;
+          border-radius: 50%;
+          background: #4ade80;
+          flex-shrink: 0;
+          animation: dotPulse 2.2s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* ── Background warm glow ── */}
+      <div className="about-glow" aria-hidden="true" />
+
+      {/* ── X-lines at top edge ── */}
+      <svg
+        aria-hidden="true"
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          zIndex: 0, pointerEvents: 'none',
+        }}
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="xline-fade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="white" stopOpacity="0.10" />
+            <stop offset="35%"  stopColor="white" stopOpacity="0.03" />
+            <stop offset="65%"  stopColor="white" stopOpacity="0" />
+          </linearGradient>
+          <mask id="xline-mask">
+            <rect width="100%" height="100%" fill="url(#xline-fade)" />
+          </mask>
+        </defs>
+        <g mask="url(#xline-mask)">
+          <line x1="0"    y1="0"   x2="1440" y2="900" stroke="white" strokeWidth="0.8"/>
+          <line x1="1440" y1="0"   x2="0"    y2="900" stroke="white" strokeWidth="0.8"/>
+          <line x1="0"    y1="150" x2="1290" y2="900" stroke="white" strokeWidth="0.45"/>
+          <line x1="150"  y1="0"   x2="1440" y2="750" stroke="white" strokeWidth="0.45"/>
+          <line x1="1440" y1="150" x2="150"  y2="900" stroke="white" strokeWidth="0.45"/>
+          <line x1="1290" y1="0"   x2="0"    y2="750" stroke="white" strokeWidth="0.45"/>
+        </g>
+      </svg>
+
+      {/* ── Radial light rays ── */}
+      <svg
+        aria-hidden="true"
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          zIndex: 0, pointerEvents: 'none',
+        }}
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <radialGradient id="ray-fade" cx="62%" cy="40%" r="70%">
+            <stop offset="0%"   stopColor="white" stopOpacity="0"    />
+            <stop offset="30%"  stopColor="white" stopOpacity="0.07" />
+            <stop offset="70%"  stopColor="white" stopOpacity="0.04" />
+            <stop offset="100%" stopColor="white" stopOpacity="0"    />
+          </radialGradient>
+          <mask id="ray-mask">
+            <rect width="100%" height="100%" fill="url(#ray-fade)" />
+          </mask>
+        </defs>
+        <g mask="url(#ray-mask)" stroke="white" strokeWidth="0.6" opacity="0.9">
+          {Array.from({ length: 24 }, (_, i) => {
+            const angle = (i * 15 * Math.PI) / 180;
+            const ox = 900, oy = 360;
+            const len = 1400;
+            return (
+              <line
+                key={i}
+                x1={ox} y1={oy}
+                x2={ox + len * Math.cos(angle)}
+                y2={oy + len * Math.sin(angle)}
+              />
+            );
+          })}
+        </g>
+      </svg>
+
+      <div className="about-inner">
+
+        {/* Header */}
+        <div className={`about-header${inView ? ' in' : ''}`}>
+          <div className="about-eyebrow">Who I Am</div>
+          <h2 className="about-heading">About <span>Me</span></h2>
+          <div className="about-divider" />
         </div>
 
-        {/* Command Reference Panel */}
-        {showCommands && (
-          <div className="mb-8 bg-[#0a0a0a] rounded-lg border-2 border-[#dc382d]/30 overflow-hidden shadow-2xl">
-            <div className="bg-[#dc382d]/20 px-6 py-3 border-b border-[#dc382d]/30">
-              <h3 className="text-[#dc382d] font-mono font-bold text-lg">📚 Available Redis Commands</h3>
-              <p className="text-gray-400 text-xs mt-1">Click any command to copy it to clipboard</p>
-            </div>
-            <div className="p-6 space-y-4">
-              {redisCommands.map((cmd, index) => (
-                <div 
-                  key={index}
-                  onClick={() => copyCommand(cmd.command)}
-                  className="bg-[#1a1a1a] p-4 rounded-lg border border-[#dc382d]/20 hover:border-[#dc382d]/50 transition-all group cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[#00ff00] font-mono text-sm font-bold">{cmd.command}</span>
-                        {copiedCommand === cmd.command && (
-                          <span className="text-xs text-[#dc382d] font-mono animate-pulse">✓ Copied!</span>
-                        )}
+        <div className="about-grid">
+
+          {/* ── Left ── */}
+          <div className={`about-left${inView ? ' in' : ''}`}>
+            <p className="about-bio">
+              Hi there! 👋 I’m <strong>Avinash Jha</strong>, an <strong>Associate Developer</strong> based in{' '}
+              <strong>New Delhi</strong>. I build full-stack web applications with the <strong>MERN stack</strong> and enjoy
+              turning complex requirements into clean, reliable, user-friendly products. I care about
+              <strong> modern UI</strong> craftsmanship—responsive layouts, smooth interactions, and thoughtful
+              details that make interfaces feel premium.
+              <br />
+              <br />
+              Beyond the frontend, I work comfortably with APIs, databases, and performance tuning to
+              keep systems scalable. I’m also excited by practical <strong>Generative AI</strong> and have integrated
+              tools like <strong>Google’s Gemini API</strong> to create smarter features that solve real problems.
+              My experience includes enterprise work on <strong>Workday Extend</strong> as well as building real-time
+              platforms such as video calling solutions.
+              <br />
+              <br />
+              I keep sharpening my fundamentals through <strong>Data Structures and Algorithms</strong> and aim to
+              write readable code that’s easy to maintain. If you’re building something impactful, I’d
+              love to collaborate. I’m always learning, open to feedback, and enjoy partnering with
+              teams to ship value fast.
+            </p>
+
+          </div>
+
+          {/* ── Right — MacBook ── */}
+          <div className={`about-right${inView ? ' in' : ''}`}>
+            <div className="macbook-scene">
+              <div className="macbook-3d">
+
+                {/* LID */}
+                <div className={`mac-lid${macOpen ? ' open' : ''}`}>
+                  <div className="mac-logo" />
+                  <div className="mac-camera" />
+                  <div className="mac-bezel">
+                    <div className="mac-screen-content">
+
+                      <div className="mac-line">
+                        <span className="mac-prompt">$</span>
+                        <span>whoami</span>
                       </div>
-                      <p className="text-gray-400 text-sm">{cmd.description}</p>
-                    </div>
-                    <div className="text-gray-500 group-hover:text-[#dc382d] hover:scale-110 transition-all text-xl">
-                      📋
+                      <div className="mac-output-name">
+                        {typed}{typed.length < 11 && <span className="mac-cursor" />}
+                      </div>
+
+                      {showRole && (
+                        <>
+                          <div className="mac-line" style={{ marginTop: '0.65rem' }}>
+                            <span className="mac-prompt">$</span>
+                            <span>cat role.txt</span>
+                          </div>
+                          <div className="mac-output-role">
+                            {typedRole}{!showStack && <span className="mac-cursor" />}
+                          </div>
+                        </>
+                      )}
+
+                      {showStack && (
+                        <>
+                          <div className="mac-line" style={{ marginTop: '0.65rem' }}>
+                            <span className="mac-prompt">$</span>
+                            <span>echo $STACK</span>
+                          </div>
+                          <div className="mac-output-stack">MERN · Gen AI · DSA</div>
+                          <div className="mac-line" style={{ marginTop: '0.65rem' }}>
+                            <span className="mac-prompt">$</span>
+                            <span className="mac-cursor" />
+                          </div>
+                        </>
+                      )}
+
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="bg-[#dc382d]/10 px-6 py-3 border-t border-[#dc382d]/30">
-              <p className="text-gray-500 text-xs font-mono">
-                💡 <span className="text-[#dc382d]">Tip:</span> Copy any command and paste it into the terminal below, or click "EXECUTE ALL COMMANDS" to run them automatically!
-              </p>
-            </div>
-          </div>
-        )}
 
-        {/* Redis CLI Terminal */}
-        <div className="bg-[#0a0a0a] rounded-lg overflow-hidden shadow-2xl border-2 border-[#dc382d]/30">
-          {/* Terminal Header */}
-          <div className="bg-[#dc382d] px-4 py-2 flex items-center gap-3">
-            <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full bg-white/80"></div>
-              <div className="w-3 h-3 rounded-full bg-white/80"></div>
-              <div className="w-3 h-3 rounded-full bg-white/80"></div>
-            </div>
-            <span className="text-white font-mono text-sm font-bold">Redis CLI - developer:avinash</span>
-          </div>
+                {/* HINGE */}
+                <div className="mac-hinge" />
 
-          {/* Terminal Content */}
-          <div className="p-6 font-mono text-sm min-h-[600px] max-h-[700px] overflow-y-auto">
-            {/* Connection Message */}
-            <div className="mb-6">
-              <div className="text-gray-500">Connected to Redis server</div>
-              <div className="text-gray-500">Redis version: 7.2.0</div>
-              <div className="text-[#dc382d]">127.0.0.1:6379&gt;</div>
-            </div>
-
-            {/* Waiting State */}
-            {!autoExecute && typedCommands.length === 0 && manualExecutedCommands.length === 0 && (
-              <div className="text-center py-20">
-                <FontAwesomeIcon icon={faDatabase} className="text-6xl text-[#dc382d]/30 mb-4 animate-pulse" />
-                <p className="text-gray-500 mb-2">Waiting for commands...</p>
-                <p className="text-gray-600 text-xs">Click the button above to execute Redis queries or paste commands below</p>
-              </div>
-            )}
-
-            {/* Manual Executed Commands */}
-            {manualExecutedCommands.map((cmd, index) => (
-              <div key={`manual-${index}`} className="mb-6">
-                <div className="mb-2">
-                  <span className="text-[#dc382d]">127.0.0.1:6379&gt; </span>
-                  <span className="text-[#00ff00]">{cmd.command}</span>
-                </div>
-                <div className="ml-4">
-                  {cmd.response.map((line, i) => (
-                    <div key={i} className={`mb-1 ${line.includes('error') ? 'text-red-400' : 'text-[#ffcc00]'}`}>
-                      {line}
+                {/* BASE with keyboard rows */}
+                <div className="mac-base">
+                  <div className="mac-kbd-rows">
+                    {[
+                      [14,14,14,14,14,14,14,14,14,14,14,14],
+                      [14,14,14,14,14,14,14,14,14,14,'wide'],
+                      [14,14,14,14,14,14,14,14,14,14],
+                    ].map((row, ri) => (
+                      <div className="mac-kbd-row" key={ri}>
+                        {row.map((w, ki) => (
+                          <div key={ki} className={`mac-key${w === 'wide' ? ' wide' : ''}`} />
+                        ))}
+                      </div>
+                    ))}
+                    <div className="mac-kbd-row">
+                      <div className="mac-key wide" />
+                      <div className="mac-key space" />
+                      <div className="mac-key wide" />
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {/* Typed Commands */}
-            {typedCommands.map((cmd, index) => (
-              <div key={index} className="mb-6">
-                {/* Command */}
-                <div className="mb-2">
-                  <span className="text-[#dc382d]">127.0.0.1:6379&gt; </span>
-                  <span className="text-[#00ff00]">{cmd.command}</span>
-                </div>
-                
-                {/* Response */}
-                <div className="ml-4">
-                  {cmd.response.map((line, i) => (
-                    <div key={i} className="text-[#ffcc00] mb-1">
-                      {line}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {/* Cursor */}
-            {autoExecute && currentCommandIndex < redisCommands.length && (
-              <div>
-                <span className="text-[#dc382d]">127.0.0.1:6379&gt; </span>
-                <span 
-                  className="inline-block w-2 h-4 bg-[#dc382d] align-middle"
-                  style={{ opacity: showCursor ? 1 : 0 }}
-                ></span>
-              </div>
-            )}
-
-            {/* Manual Command Input */}
-            {!autoExecute && (
-              <form onSubmit={handleManualCommand} className="flex items-center gap-2">
-                <span className="text-[#dc382d]">127.0.0.1:6379&gt;</span>
-                <input
-                  type="text"
-                  value={manualCommand}
-                  onChange={(e) => setManualCommand(e.target.value)}
-                  placeholder="Paste command here and press Enter..."
-                  className="flex-1 bg-transparent border-none outline-none text-[#00ff00] font-mono text-sm placeholder-gray-600"
-                  autoFocus
-                />
-              </form>
-            )}
-
-            {/* All commands executed */}
-            {autoExecute && currentCommandIndex >= redisCommands.length && (
-              <div>
-                <div className="mb-4">
-                  <span className="text-[#dc382d]">127.0.0.1:6379&gt; </span>
-                  <span className="text-gray-500">// All data retrieved successfully ✓</span>
-                </div>
-                <div className="mt-6 p-4 bg-[#dc382d]/10 border-l-4 border-[#dc382d] rounded">
-                  <div className="text-[#dc382d] font-bold mb-2">💡 Key Takeaway:</div>
-                  <div className="text-gray-300">
-                    I'm a passionate developer ready to turn innovative ideas into scalable solutions. 
-                    Currently seeking <span className="text-[#00ff00] font-bold">SDE opportunities</span> to make meaningful impact!
                   </div>
+                  <div className="mac-trackpad" />
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Terminal Footer */}
-          <div className="bg-[#dc382d]/20 px-4 py-2 border-t border-[#dc382d]/30">
-            <div className="flex items-center gap-4 text-xs font-mono text-gray-400">
-              <span>📡 Connected</span>
-              <span>•</span>
-              <span>⚡ {typedCommands.length}/{redisCommands.length} commands executed</span>
-              <span>•</span>
-              <span>🔴 Redis Mode: READ</span>
+                <div className="mac-glow-bottom" />
+
+              </div>
             </div>
           </div>
+
         </div>
       </div>
     </section>
   );
-};
-
-export default About;
+}

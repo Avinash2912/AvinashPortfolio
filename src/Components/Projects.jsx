@@ -103,7 +103,7 @@ export const Projects = () => {
 
   return (
     <section id="projects" className="relative min-h-screen py-20 px-6 overflow-hidden">
-      {/* Docker Blue Background */}
+      {/* Background */}
       <div className="absolute inset-0 bg-linear-to-b from-[#0d1117] via-[#0d1b2a] to-[#000000]"></div>
 
       <div className="relative max-w-7xl mx-auto">

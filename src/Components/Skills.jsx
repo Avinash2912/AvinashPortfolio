@@ -379,7 +379,7 @@ const Skills = () => {
 
   return (
     <section id="skills" className="relative min-h-screen py-20 px-6 overflow-hidden">
-      {/* Postman Orange Background */}
+      {/* Background */}
       <div className="absolute inset-0 bg-linear-to-b from-[#0f0f0f] via-[#1a0f0a] to-[#000000]"></div>
 
       <div className="relative max-w-7xl mx-auto">

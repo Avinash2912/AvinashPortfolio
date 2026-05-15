@@ -1,23 +1,33 @@
+@import url('https://www.cdnfonts.com/neue-machina.font');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #000000;
+  font-family: 'Neue Machina', sans-serif;
+  font-size: 17px;
+  color: #fff;
+  overflow-x: hidden;
+}
+
 /* Responsive tweaks */
 @media (max-width: 640px) {
-	/* Reduce hero heading size on small screens */
-	h1 {
-		font-size: 2rem !important;
-	}
-
-	/* Make hero buttons more touch-friendly */
-	.email-button, .resume-button {
-		padding: 0.9rem 1.6rem !important;
-		font-size: 0.95rem !important;
-	}
-
-	/* Ensure nav links are comfortably tappable */
-	nav a {
-		padding: 0.5rem 0.6rem !important;
-	}
+  h1 { font-size: 2rem !important; }
+  .email-button, .resume-button {
+    padding: 0.9rem 1.6rem !important;
+    font-size: 0.95rem !important;
+  }
+  nav a { padding: 0.5rem 0.6rem !important; }
 }
 
 @media (max-width: 420px) {
-	h1 { font-size: 1.8rem !important; }
+  h1 { font-size: 1.8rem !important; }
 }
-
