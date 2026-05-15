@@ -21,13 +21,11 @@ const TABS = {
   ],
 };
 
+const BARCODE_HEIGHTS = [3, 5, 2, 4, 3, 2, 5, 3, 4, 2, 3, 5, 2, 4, 3];
+
 export default function About() {
-  const [inView,     setInView]     = useState(false);
-  const [macOpen,    setMacOpen]    = useState(false);
-  const [typed,      setTyped]      = useState('');
-  const [typedRole,  setTypedRole]  = useState('');
-  const [showRole,   setShowRole]   = useState(false);
-  const [showStack,  setShowStack]  = useState(false);
+  const [inView,    setInView]    = useState(false);
+  const [cardReady, setCardReady] = useState(false);
   const sectionRef = useRef(null);
 
   useEffect(() => {
@@ -39,44 +37,11 @@ export default function About() {
     return () => obs.disconnect();
   }, []);
 
-  // Open mac when section enters view
   useEffect(() => {
     if (!inView) return;
-    const t = setTimeout(() => setMacOpen(true), 400);
+    const t = setTimeout(() => setCardReady(true), 500);
     return () => clearTimeout(t);
   }, [inView]);
-
-  // Type name after mac opens
-  useEffect(() => {
-    if (!macOpen) return;
-    const NAME = 'Avinash Jha';
-    let i = 0;
-    const t = setTimeout(() => {
-      const iv = setInterval(() => {
-        i++;
-        setTyped(NAME.slice(0, i));
-        if (i >= NAME.length) { clearInterval(iv); setShowRole(true); }
-      }, 75);
-      return () => clearInterval(iv);
-    }, 1700);
-    return () => clearTimeout(t);
-  }, [macOpen]);
-
-  // Type role
-  useEffect(() => {
-    if (!showRole) return;
-    const ROLE = 'Associate Developer';
-    let i = 0;
-    const t = setTimeout(() => {
-      const iv = setInterval(() => {
-        i++;
-        setTypedRole(ROLE.slice(0, i));
-        if (i >= ROLE.length) { clearInterval(iv); setShowStack(true); }
-      }, 55);
-      return () => clearInterval(iv);
-    }, 350);
-    return () => clearTimeout(t);
-  }, [showRole]);
 
   return (
     <section
@@ -88,7 +53,7 @@ export default function About() {
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
 
         /* ═══════════════════════════════════════
-           BACKGROUND
+           BACKGROUND GLOW
         ═══════════════════════════════════════ */
         .about-glow {
           position: absolute;
@@ -127,13 +92,25 @@ export default function About() {
           from { opacity: 0; transform: translateX(52px); }
           to   { opacity: 1; transform: translateX(0);    }
         }
-        @keyframes borderGlow {
-          0%,100% { box-shadow: 0 0 0 1px rgba(224,90,28,0.12), 0 20px 50px rgba(0,0,0,0.5); }
-          50%      { box-shadow: 0 0 0 1px rgba(224,90,28,0.28), 0 28px 64px rgba(0,0,0,0.6); }
-        }
         @keyframes dotPulse {
           0%,100% { box-shadow: 0 0 5px rgba(74,222,128,0.5); }
           50%      { box-shadow: 0 0 16px rgba(74,222,128,1);  }
+        }
+        @keyframes swing {
+          0%,100% { transform: rotate(-2deg); }
+          50%      { transform: rotate(2deg);  }
+        }
+        @keyframes cardDropIn {
+          from { opacity: 0; transform: translateY(-40px) rotate(-2deg); }
+          to   { opacity: 1; transform: translateY(0)     rotate(-2deg); }
+        }
+        @keyframes lanyardDrop {
+          from { opacity: 0; transform: scaleY(0); transform-origin: top; }
+          to   { opacity: 1; transform: scaleY(1); transform-origin: top; }
+        }
+        @keyframes statusPulse {
+          0%,100% { opacity: 1; }
+          50%      { opacity: 0.4; }
         }
 
         /* ═══════════════════════════════════════
@@ -223,7 +200,7 @@ export default function About() {
         }
 
         /* ═══════════════════════════════════════
-           RIGHT COL — MACBOOK
+           RIGHT COL — ID CARD
         ═══════════════════════════════════════ */
         .about-right {
           opacity: 0;
@@ -232,326 +209,239 @@ export default function About() {
           animation: revealRight 0.9s 0.32s cubic-bezier(0.22,1,0.36,1) forwards;
         }
 
-        /* MacBook 3D — Space Gray */
-        .macbook-scene {
-          perspective: 1600px;
-          perspective-origin: 50% -20%;
-          padding-top: 1rem;
-        }
-        .macbook-3d {
-          width: 100%;
-          max-width: 440px;
-          margin: 0 auto;
-          transform-style: preserve-3d;
-          transform: rotateX(6deg);
-        }
-
-        /* ── LID ── */
-        .mac-lid {
-          position: relative;
-          background: linear-gradient(170deg,
-            #4a4a4a 0%, #3a3a3a 30%,
-            #2e2e2e 70%, #252525 100%
-          );
-          border-radius: 12px 12px 2px 2px;
-          padding: 8px 8px 5px;
-          transform-origin: bottom center;
-          transform: rotateX(86deg);
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.12),
-            inset 0 -1px 0 rgba(0,0,0,0.4),
-            0 -4px 20px rgba(0,0,0,0.5);
-          z-index: 2;
-        }
-        .mac-lid.open {
-          animation: macLidOpen 1.5s 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
-        }
-        @keyframes macLidOpen {
-          0%   { transform: rotateX(86deg); }
-          100% { transform: rotateX(-22deg); }
-        }
-
-        /* Apple logo hint */
-        .mac-logo {
-          position: absolute;
-          top: 50%; left: 50%;
-          transform: translate(-50%, -50%);
-          width: 28px; height: 28px;
-          opacity: 0.12;
-          background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
-          border-radius: 50%;
-        }
-
-        /* Screen bezel */
-        .mac-bezel {
-          background: #0d0d0d;
-          border-radius: 6px;
-          aspect-ratio: 16 / 10;
-          position: relative;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.04);
-        }
-        /* Screen glow */
-        .mac-bezel::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(ellipse at 50% 60%,
-            rgba(224,90,28,0.06) 0%,
-            transparent 65%
-          );
-          pointer-events: none;
-          z-index: 0;
-        }
-        /* Subtle screen glare */
-        .mac-bezel::after {
-          content: '';
-          position: absolute;
-          top: 0; left: 0; right: 0;
-          height: 35%;
-          background: linear-gradient(to bottom,
-            rgba(255,255,255,0.025) 0%,
-            transparent 100%
-          );
-          pointer-events: none;
-          z-index: 0;
-          border-radius: 6px 6px 0 0;
-        }
-
-        /* Camera */
-        .mac-camera {
-          position: absolute;
-          top: -16px; left: 50%; transform: translateX(-50%);
-          width: 6px; height: 6px;
-          background: #222;
-          border-radius: 50%;
-          box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
-        }
-
-        /* Screen content */
-        .mac-screen-content {
-          position: relative;
-          z-index: 1;
-          opacity: 0;
-          padding: 1rem 1.3rem;
-          height: 100%;
-          box-sizing: border-box;
-        }
-        .mac-lid.open .mac-screen-content {
-          animation: screenFadeIn 0.6s 1.8s ease forwards;
-        }
-        @keyframes screenFadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        .mac-line {
-          display: flex;
-          align-items: center;
-          gap: 0.45rem;
-          color: rgba(255,255,255,0.28);
-          font-size: 0.7rem;
-          font-family: 'Manrope', sans-serif;
-          margin-bottom: 0.25rem;
-        }
-        .mac-prompt { color: #e05a1c; font-weight: 600; }
-        .mac-output-name {
-          font-family: 'Neue Machina', sans-serif;
-          font-size: clamp(1.3rem, 2.5vw, 1.6rem);
-          font-weight: 400;
-          color: #ffffff;
-          letter-spacing: -0.02em;
-          line-height: 1.1;
-          margin-bottom: 0.15rem;
-          min-height: 1.9rem;
-          text-shadow: 0 0 20px rgba(224,90,28,0.3);
-        }
-        .mac-output-role {
-          font-size: 0.78rem;
-          font-family: 'Manrope', sans-serif;
-          color: #e05a1c;
-          min-height: 1.1rem;
-          margin-bottom: 0.1rem;
-        }
-        .mac-output-stack {
-          font-size: 0.68rem;
-          font-family: 'Manrope', sans-serif;
-          color: rgba(255,255,255,0.35);
-          margin-top: 0.5rem;
-          letter-spacing: 0.05em;
-        }
-        .mac-cursor {
-          display: inline-block;
-          width: 1.5px; height: 0.9em;
-          background: #e05a1c;
-          margin-left: 1px;
-          vertical-align: middle;
-          animation: cursorBlink 0.85s step-end infinite;
-        }
-        @keyframes cursorBlink {
-          0%,100% { opacity: 1; } 50% { opacity: 0; }
-        }
-
-        /* ── HINGE ── */
-        .mac-hinge {
-          height: 4px;
-          background: linear-gradient(to bottom, #1a1a1a, #141414);
-          position: relative;
-          z-index: 3;
-          box-shadow:
-            0 1px 0 rgba(255,255,255,0.03),
-            0 -1px 0 rgba(0,0,0,0.6);
-        }
-
-        /* ── BASE / KEYBOARD ── */
-        .mac-base {
-          background: linear-gradient(180deg,
-            #3e3e3e 0%, #353535 40%,
-            #2d2d2d 100%
-          );
-          border-radius: 0 0 10px 10px;
-          position: relative;
-          padding: 10px 14px 7px;
-          box-shadow:
-            0 14px 50px rgba(0,0,0,0.8),
-            0 4px 16px rgba(0,0,0,0.5),
-            inset 0 1px 0 rgba(255,255,255,0.06);
-        }
-        /* Keyboard rows */
-        .mac-kbd-rows {
+        /* ── Lanyard wrapper ── */
+        .id-scene {
           display: flex;
           flex-direction: column;
-          gap: 3px;
-          opacity: 0.25;
-          margin-bottom: 5px;
+          align-items: center;
+          padding-top: 0;
+          margin-top: -88px;
         }
-        .mac-kbd-row {
+
+        /* Lanyard string */
+        .lanyard-strings {
           display: flex;
-          gap: 2.5px;
-          justify-content: center;
+          gap: 18px;
+          animation: lanyardDrop 0.6s 0.5s cubic-bezier(0.22,1,0.36,1) both;
         }
-        .mac-key {
-          height: 5px;
-          background: rgba(255,255,255,0.15);
-          border-radius: 1.5px;
-          flex: 1;
-          max-width: 22px;
+        .lanyard-string {
+          width: 1.5px;
+          height: 44px;
+          background: linear-gradient(to bottom, rgba(224,90,28,0.6), rgba(224,90,28,0.15));
         }
-        .mac-key.wide  { max-width: 36px; }
-        .mac-key.space { max-width: 100px; }
-        /* Trackpad */
-        .mac-trackpad {
-          width: 80px; height: 8px;
-          background: rgba(255,255,255,0.07);
+
+        /* Lanyard clip */
+        .lanyard-clip {
+          width: 20px;
+          height: 10px;
+          background: rgba(255,255,255,0.12);
+          border: 1px solid rgba(255,255,255,0.2);
           border-radius: 3px;
           margin: 0 auto;
-          border: 1px solid rgba(255,255,255,0.04);
+          animation: lanyardDrop 0.6s 0.4s cubic-bezier(0.22,1,0.36,1) both;
         }
-        /* Base glow */
-        .mac-glow-bottom {
-          width: 70%; height: 18px;
-          margin: 0 auto;
-          background: radial-gradient(ellipse,
-            rgba(224,90,28,0.18) 0%, transparent 70%
-          );
-          filter: blur(6px);
-          margin-top: 2px;
+
+        /* Lanyard top bar */
+        .lanyard-bar {
+          width: 80px;
+          height: 6px;
+          background: linear-gradient(90deg, #c0391a, #e05a1c, #c0391a);
+          border-radius: 3px;
+          margin-bottom: 2px;
+          animation: lanyardDrop 0.5s 0.3s cubic-bezier(0.22,1,0.36,1) both;
         }
-        .terminal-card {
-          background: #080808;
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 18px;
+
+        /* ── The Card ── */
+        .id-card {
+          width: 280px;
+          margin-top: 0;
+          background: #0a0a0a;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 16px;
           overflow: hidden;
-          animation: borderGlow 5s ease-in-out infinite;
+          animation: cardDropIn 0.8s 0.7s cubic-bezier(0.16,1,0.3,1) both,
+                     swing 5s 1.5s ease-in-out infinite;
+          transform-origin: top center;
+          box-shadow:
+            0 2px 0 rgba(224,90,28,0.2),
+            0 20px 60px rgba(0,0,0,0.7),
+            0 0 0 1px rgba(224,90,28,0.05);
         }
-        .terminal-bar {
-          background: rgba(255,255,255,0.03);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          padding: 0.85rem 1.4rem;
+
+        /* Card top accent strip */
+        .id-card-topstrip {
+          height: 3px;
+          background: linear-gradient(90deg, #e05a1c 0%, #c0391a 50%, transparent 100%);
+        }
+
+        /* Card header */
+        .id-card-header {
+          background: #111;
+          padding: 1.25rem 1.25rem 1rem;
           display: flex;
+          flex-direction: column;
           align-items: center;
           gap: 0.6rem;
+          position: relative;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        .tbar-dot {
-          width: 11px; height: 11px;
+
+        /* Org label */
+        .id-org {
+          font-size: 0.6rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,0.25);
+          align-self: flex-start;
+        }
+
+        /* Avatar */
+        .id-avatar {
+          width: 68px;
+          height: 68px;
           border-radius: 50%;
-          flex-shrink: 0;
-        }
-        .tbar-title {
-          font-size: 0.72rem;
-          font-family: 'Manrope', sans-serif;
-          font-weight: 400;
-          color: rgba(255,255,255,0.25);
-          margin-left: auto;
-          letter-spacing: 0.04em;
-        }
-        .terminal-tabs {
-          display: flex;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          padding: 0 1.4rem;
-        }
-        .term-tab {
-          font-size: 0.74rem;
-          font-family: 'Manrope', sans-serif;
-          font-weight: 400;
-          color: rgba(255,255,255,0.32);
-          padding: 0.7rem 1rem;
-          cursor: pointer;
-          border: none;
-          border-bottom: 2px solid transparent;
-          background: none;
-          transition: color 0.22s, border-color 0.22s;
-          white-space: nowrap;
-          letter-spacing: 0.02em;
-        }
-        .term-tab:hover { color: rgba(255,255,255,0.58); }
-        .term-tab.active { color: #e05a1c; border-bottom-color: #e05a1c; }
-
-        .terminal-body {
-          padding: 1.5rem 1.7rem;
-          font-family: 'Manrope', sans-serif;
-          font-size: 0.8rem;
-          font-weight: 400;
-          line-height: 1;
-          min-height: 220px;
-        }
-        .term-prompt { color: rgba(224,90,28,0.7); user-select: none; }
-        .term-cmd    { color: rgba(255,255,255,0.38); }
-        .term-row {
-          display: flex;
-          gap: 1.2rem;
-          padding: 0.55rem 0.5rem;
-          border-radius: 6px;
-          transition: background 0.2s;
-        }
-        .term-row:hover { background: rgba(255,255,255,0.03); }
-        .term-key { color: rgba(255,255,255,0.26); min-width: 100px; flex-shrink: 0; }
-        .term-val { color: #cfb98a; }
-
-        .terminal-footer {
-          background: rgba(224,90,28,0.04);
-          border-top: 1px solid rgba(224,90,28,0.09);
-          padding: 0.7rem 1.7rem;
+          background: #1a1a1a;
+          border: 2px solid rgba(224,90,28,0.5);
           display: flex;
           align-items: center;
-          gap: 0.6rem;
-          font-size: 0.7rem;
+          justify-content: center;
+          font-size: 1.5rem;
+          font-weight: 700;
           font-family: 'Manrope', sans-serif;
-          font-weight: 400;
-          color: rgba(255,255,255,0.25);
+          color: #e05a1c;
+          position: relative;
         }
-        .footer-dot {
-          width: 7px; height: 7px;
+        .id-avatar::after {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          border: 1px solid rgba(224,90,28,0.15);
+        }
+
+        /* Name */
+        .id-name {
+          font-size: 1.15rem;
+          font-family: 'Neue Machina', sans-serif;
+          font-weight: 400;
+          color: #fff;
+          letter-spacing: -0.01em;
+          text-align: center;
+        }
+
+        /* Role badge */
+        .id-role-badge {
+          background: rgba(224,90,28,0.12);
+          border: 1px solid rgba(224,90,28,0.25);
+          border-radius: 20px;
+          padding: 0.2rem 0.75rem;
+          font-size: 0.65rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #e05a1c;
+        }
+
+        /* Chip */
+        .id-chip {
+          position: absolute;
+          top: 1.1rem;
+          right: 1.1rem;
+          width: 26px;
+          height: 20px;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 3px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2px;
+          padding: 3px;
+        }
+        .id-chip-cell {
+          background: rgba(255,255,255,0.1);
+          border-radius: 1px;
+        }
+
+        /* Card body */
+        .id-card-body {
+          padding: 1rem 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.55rem;
+        }
+        .id-field {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .id-field-label {
+          font-size: 0.58rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,0.22);
+        }
+        .id-field-value {
+          font-size: 0.8rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 500;
+          color: rgba(255,255,255,0.78);
+        }
+        .id-divider {
+          height: 1px;
+          background: rgba(255,255,255,0.05);
+          margin: 0.1rem 0;
+        }
+
+        /* Card footer */
+        .id-card-footer {
+          background: rgba(255,255,255,0.02);
+          border-top: 1px solid rgba(255,255,255,0.05);
+          padding: 0.7rem 1.25rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .id-status {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.68rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 600;
+          color: #4ade80;
+          letter-spacing: 0.03em;
+        }
+        .id-status-dot {
+          width: 7px;
+          height: 7px;
           border-radius: 50%;
           background: #4ade80;
-          flex-shrink: 0;
-          animation: dotPulse 2.2s ease-in-out infinite;
+          animation: statusPulse 2s ease-in-out infinite;
+          box-shadow: 0 0 6px rgba(74,222,128,0.6);
         }
+
+        /* Barcode */
+        .id-barcode {
+          display: flex;
+          gap: 1.5px;
+          align-items: flex-end;
+          height: 22px;
+        }
+        .id-bar {
+          background: rgba(255,255,255,0.2);
+          border-radius: 1px;
+        }
+
       `}</style>
 
-      {/* ── Background warm glow ── */}
       <div className="about-glow" aria-hidden="true" />
 
-      {/* ── X-lines at top edge ── */}
+      {/* Animated X lines */}
       <svg
         aria-hidden="true"
         style={{
@@ -583,7 +473,7 @@ export default function About() {
         </g>
       </svg>
 
-      {/* ── Radial light rays ── */}
+      {/* Radial light rays */}
       <svg
         aria-hidden="true"
         style={{
@@ -634,108 +524,100 @@ export default function About() {
 
         <div className="about-grid">
 
-          {/* ── Left ── */}
+          {/* Left — Bio */}
           <div className={`about-left${inView ? ' in' : ''}`}>
             <p className="about-bio">
-              Hi there! 👋 I’m <strong>Avinash Jha</strong>, an <strong>Associate Developer</strong> based in{' '}
-              <strong>New Delhi</strong>. I build full-stack web applications with the <strong>MERN stack</strong> and enjoy
-              turning complex requirements into clean, reliable, user-friendly products. I care about
-              <strong> modern UI</strong> craftsmanship—responsive layouts, smooth interactions, and thoughtful
-              details that make interfaces feel premium.
-              <br />
-              <br />
-              Beyond the frontend, I work comfortably with APIs, databases, and performance tuning to
-              keep systems scalable. I’m also excited by practical <strong>Generative AI</strong> and have integrated
-              tools like <strong>Google’s Gemini API</strong> to create smarter features that solve real problems.
-              My experience includes enterprise work on <strong>Workday Extend</strong> as well as building real-time
-              platforms such as video calling solutions.
-              <br />
-              <br />
-              I keep sharpening my fundamentals through <strong>Data Structures and Algorithms</strong> and aim to
-              write readable code that’s easy to maintain. If you’re building something impactful, I’d
-              love to collaborate. I’m always learning, open to feedback, and enjoy partnering with
-              teams to ship value fast.
+              I’m <strong>Avinash Jha</strong>, an <strong>Associate Developer</strong> based in <strong>New Delhi</strong>, passionate about
+              building <strong>scalable full-stack applications</strong> and crafting <strong>modern, user-friendly web experiences</strong>.
+              I work primarily with the <strong>MERN stack</strong> and enjoy turning complex ideas into clean, reliable
+              products with smooth UI interactions and responsive design.
+              <br /><br />
+              I’ve worked on enterprise-grade <strong>Workday Extend</strong> applications, <strong>AI automation solutions</strong>, and
+              <strong>real-time platforms</strong>, while also exploring practical <strong>Generative AI</strong> integrations using tools
+              like the <strong>Gemini API</strong>. Alongside application development, I’m deeply interested in <strong>system design</strong>,
+              <strong>backend architecture</strong>, and building maintainable systems that scale efficiently.
+              <br /><br />
+              I continuously strengthen my problem-solving skills through <strong>Data Structures &amp; Algorithms</strong> and
+              love learning new technologies that help create impactful digital experiences.
             </p>
-
           </div>
 
-          {/* ── Right — MacBook ── */}
+          {/* Right — ID Card */}
           <div className={`about-right${inView ? ' in' : ''}`}>
-            <div className="macbook-scene">
-              <div className="macbook-3d">
+            <div className="id-scene">
 
-                {/* LID */}
-                <div className={`mac-lid${macOpen ? ' open' : ''}`}>
-                  <div className="mac-logo" />
-                  <div className="mac-camera" />
-                  <div className="mac-bezel">
-                    <div className="mac-screen-content">
+              {/* Lanyard top bar */}
+              <div className="lanyard-bar" />
 
-                      <div className="mac-line">
-                        <span className="mac-prompt">$</span>
-                        <span>whoami</span>
-                      </div>
-                      <div className="mac-output-name">
-                        {typed}{typed.length < 11 && <span className="mac-cursor" />}
-                      </div>
+              {/* Lanyard clip */}
+              <div className="lanyard-clip" />
 
-                      {showRole && (
-                        <>
-                          <div className="mac-line" style={{ marginTop: '0.65rem' }}>
-                            <span className="mac-prompt">$</span>
-                            <span>cat role.txt</span>
-                          </div>
-                          <div className="mac-output-role">
-                            {typedRole}{!showStack && <span className="mac-cursor" />}
-                          </div>
-                        </>
-                      )}
+              {/* Lanyard strings */}
+              <div className="lanyard-strings">
+                <div className="lanyard-string" />
+                <div className="lanyard-string" />
+              </div>
 
-                      {showStack && (
-                        <>
-                          <div className="mac-line" style={{ marginTop: '0.65rem' }}>
-                            <span className="mac-prompt">$</span>
-                            <span>echo $STACK</span>
-                          </div>
-                          <div className="mac-output-stack">MERN · Gen AI · DSA</div>
-                          <div className="mac-line" style={{ marginTop: '0.65rem' }}>
-                            <span className="mac-prompt">$</span>
-                            <span className="mac-cursor" />
-                          </div>
-                        </>
-                      )}
+              {/* ID Card */}
+              <div className="id-card">
 
-                    </div>
+                {/* Top accent */}
+                <div className="id-card-topstrip" />
+
+                {/* Header */}
+                <div className="id-card-header">
+                  <div className="id-org">Developer</div>
+
+                  {/* Chip (top-right corner) */}
+                  <div className="id-chip" aria-hidden="true">
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                  </div>
+
+                  <div className="id-avatar">AJ</div>
+                  <div className="id-name">Avinash Jha</div>
+                  <div className="id-role-badge">Associate Developer</div>
+                </div>
+
+                {/* Body */}
+                <div className="id-card-body">
+                  <div className="id-field">
+                    <div className="id-field-label">Stack</div>
+                    <div className="id-field-value">MERN · Gen AI · DSA</div>
+                  </div>
+                  <div className="id-divider" />
+                  <div className="id-field">
+                    <div className="id-field-label">Location</div>
+                    <div className="id-field-value">New Delhi, India</div>
+                  </div>
+                  <div className="id-divider" />
+                  <div className="id-field">
+                    <div className="id-field-label">Available For</div>
+                    <div className="id-field-value">Full-time · Freelance</div>
                   </div>
                 </div>
 
-                {/* HINGE */}
-                <div className="mac-hinge" />
-
-                {/* BASE with keyboard rows */}
-                <div className="mac-base">
-                  <div className="mac-kbd-rows">
-                    {[
-                      [14,14,14,14,14,14,14,14,14,14,14,14],
-                      [14,14,14,14,14,14,14,14,14,14,'wide'],
-                      [14,14,14,14,14,14,14,14,14,14],
-                    ].map((row, ri) => (
-                      <div className="mac-kbd-row" key={ri}>
-                        {row.map((w, ki) => (
-                          <div key={ki} className={`mac-key${w === 'wide' ? ' wide' : ''}`} />
-                        ))}
-                      </div>
+                {/* Footer */}
+                <div className="id-card-footer">
+                  <div className="id-status">
+                    <div className="id-status-dot" />
+                    Open to Work
+                  </div>
+                  <div className="id-barcode" aria-hidden="true">
+                    {BARCODE_HEIGHTS.map((h, i) => (
+                      <div
+                        key={i}
+                        className="id-bar"
+                        style={{
+                          width: h <= 3 ? '2px' : '3px',
+                          height: `${h * 3 + 4}px`,
+                        }}
+                      />
                     ))}
-                    <div className="mac-kbd-row">
-                      <div className="mac-key wide" />
-                      <div className="mac-key space" />
-                      <div className="mac-key wide" />
-                    </div>
                   </div>
-                  <div className="mac-trackpad" />
                 </div>
-
-                <div className="mac-glow-bottom" />
 
               </div>
             </div>
