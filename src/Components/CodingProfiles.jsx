@@ -382,14 +382,17 @@ const CodingProfiles = () => {
         .group:hover .cp-card { transform: translateY(-8px); }
         .cp-card-content { position: relative; }
         .cp-logo {
-          width: 86px;
-          height: 86px;
-          border-radius: 18px;
+          width: 72px;
+          height: 72px;
+          border-radius: 9999px;
           display: flex;
           align-items: center;
           justify-content: center;
+          box-sizing: border-box;
+          padding: 10px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.10);
+          overflow: hidden;
         }
         .cp-chip {
           display: inline-flex;
@@ -503,14 +506,14 @@ const CodingProfiles = () => {
                       {profile.id === 'github' ? (
                         <FontAwesomeIcon 
                           icon={faGithub} 
-                          className="text-5xl"
+                          className="text-3xl leading-none"
                           style={{ color: profile.color }}
                         />
                       ) : (
                         <img 
                           src={profile.logo} 
                           alt={profile.name}
-                          className="w-16 h-16 object-contain"
+                          className="w-12 h-12 object-contain"
                           style={{
                             filter: profile.id === 'leetcode' ? 'brightness(0) invert(1)' : 'none'
                           }}
