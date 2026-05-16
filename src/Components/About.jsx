@@ -585,7 +585,7 @@ export default function About() {
                 <div className="id-card-body">
                   <div className="id-field">
                     <div className="id-field-label">Stack</div>
-                    <div className="id-field-value">MERN · Gen AI · DSA</div>
+                    <div className="id-field-value">MERN · Gen AI · DSA . System Design </div>
                   </div>
                   <div className="id-divider" />
                   <div className="id-field">
