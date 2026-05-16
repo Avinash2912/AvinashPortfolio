@@ -1,19 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faEnvelope, 
-  faMapMarkerAlt, 
-  faPhone,
-  faHeart,
-  faCode,
-  faArrowUp
+  faArrowUp, 
+  faCircle, 
+  faCompass, 
+  faNetworkWired, 
+  faShieldHalved,
+  faArrowUpRightFromSquare
 } from '@fortawesome/free-solid-svg-icons';
-import { 
-  faGithub, 
-  faLinkedin, 
-  faTwitter,
-  faInstagram
-} from '@fortawesome/free-brands-svg-icons';
+import { faGithub, faLinkedin } from '@fortawesome/free-brands-svg-icons';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -21,33 +16,6 @@ const Footer = () => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const socialLinks = [
-    {
-      name: 'GitHub',
-      icon: faGithub,
-      url: 'https://github.com/Avinash2912',
-      color: '#ffffff'
-    },
-    {
-      name: 'LinkedIn',
-      icon: faLinkedin,
-      url: 'https://linkedin.com/in/avinash-jha',
-      color: '#0077B5'
-    },
-    {
-      name: 'LeetCode',
-      icon: faCode,
-      url: 'https://leetcode.com/u/Avinash_1912/',
-      color: '#FFA116'
-    },
-    {
-      name: 'Email',
-      icon: faEnvelope,
-      url: 'mailto:avinashjha19@outlook.com',
-      color: '#00D9FF'
-    }
-  ];
 
   const quickLinks = [
     { name: 'About Me', href: '#about' },
@@ -58,68 +26,72 @@ const Footer = () => {
     { name: 'Profiles', href: '#coding-profiles' }
   ];
 
-  const handleNavClick = (e, href) => {
-    e.preventDefault();
-    const targetId = href.substring(1);
-    const element = document.getElementById(targetId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+  const socials = [
+    { name: 'GitHub', url: 'https://github.com/Avinash2912', icon: faGithub, color: 'hover:text-white hover:border-white/40 hover:bg-white/[0.02]' },
+    { name: 'LinkedIn', url: 'https://linkedin.com/in/avinash-jha', icon: faLinkedin, color: 'hover:text-[#0077B5] hover:border-[#0077B5]/40 hover:bg-[#0077B5]/5' },
+    { name: 'LeetCode', url: 'https://leetcode.com/u/Avinash_1912/', icon: faNetworkWired, color: 'hover:text-[#FFA116] hover:border-[#FFA116]/40 hover:bg-[#FFA116]/5' }
+  ];
 
   return (
-    <footer className="relative bg-[#000000] border-t border-white/10 overflow-hidden">
-      {/* Animated Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px'
-        }}></div>
-      </div>
+    <footer className="relative bg-[#030305] text-white border-t border-white/[0.05] overflow-hidden py-28 px-8 sm:px-16 lg:px-24">
+      
+      {/* High-End Ambient Lighting (Dynamic Space Depth) */}
+      <div className="absolute -top-60 -left-60 w-[500px] h-[500px] bg-[#e05a1c]/[0.04] rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-0 right-20 w-[400px] h-[400px] bg-[#e05a1c]/[0.02] rounded-full blur-[140px] pointer-events-none" />
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0a]/50 to-[#000000]"></div>
+      {/* Structured Grid Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,transparent_10%,black_100%)] pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-6 py-16">
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+      {/* Max Width Expanded to 7xl for Premium Screen Distribution */}
+      <div className="relative max-w-7xl mx-auto z-10 space-y-16">
+        
+        {/* UPPER DASHBOARD GRID: Massive Spacing Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-12 pb-16 border-b border-white/[0.08]">
           
-          {/* About Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FFA116] to-[#FF6C37] flex items-center justify-center">
-                <FontAwesomeIcon icon={faCode} className="text-white text-xl" />
+          {/* Brand Panel (5 Columns) */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-[#e05a1c]/20 to-black border border-[#e05a1c]/40 shadow-[0_0_20px_rgba(224,90,28,0.2)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#e05a1c] animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold text-white">Avinash Jha</h3>
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                Avinash Jha
+              </span>
             </div>
-            <p className="text-gray-400 font-mono text-sm leading-relaxed">
-              Full Stack Developer & Competitive Programmer passionate about building 
-              innovative solutions and solving complex problems.
+            
+            <p className="text-base text-gray-400 font-sans leading-relaxed max-w-md">
+              Engineering high-fidelity web experiences, modular micro-systems, and highly optimized frontend interfaces. Focused on performance, scale, and clean architecture.
             </p>
-            <div className="flex items-center gap-2 text-gray-500 text-sm font-mono">
-              <FontAwesomeIcon icon={faMapMarkerAlt} className="text-[#FF6C37]" />
-              <span>Delhi, India</span>
+
+            <div className="flex items-center gap-6 text-xs font-mono text-gray-500 pt-2 tracking-wider">
+              <span className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faShieldHalved} className="text-[#e05a1c]/70 text-sm" />
+                SECURE_NODE // DELHI, IN
+              </span>
+              <span className="flex items-center gap-2 text-emerald-400 font-bold">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                STATUS: ACTIVE
+              </span>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
-              <div className="w-1 h-6 bg-gradient-to-b from-[#FFA116] to-[#FF6C37] rounded-full"></div>
-              Quick Links
-            </h4>
-            <ul className="space-y-3">
-              {quickLinks.map((link, index) => (
-                <li key={index}>
+          {/* Navigation Index (3 Columns) */}
+          <div className="lg:col-span-3 space-y-6 lg:pl-8">
+            <div className="flex items-center gap-2.5 text-xs font-mono tracking-widest text-gray-500 uppercase">
+              <FontAwesomeIcon icon={faCompass} className="text-gray-600 text-xs" />
+              Index Routing
+            </div>
+            <ul className="grid grid-cols-1 gap-y-4 text-base">
+              {quickLinks.map((link, idx) => (
+                <li key={idx}>
                   <a
                     href={link.href}
-                    onClick={(e) => handleNavClick(e, link.href)}
-                    className="text-gray-400 hover:text-[#FFA116] font-mono text-sm transition-all duration-300 flex items-center gap-2 group"
+                    className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center gap-2 group font-sans"
                   >
-                    <span className="w-0 group-hover:w-2 h-px bg-[#FFA116] transition-all duration-300"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#e05a1c] opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-50 group-hover:scale-100" />
                     {link.name}
                   </a>
                 </li>
@@ -127,119 +99,84 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contact Info */}
-          <div>
-            <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
-              <div className="w-1 h-6 bg-gradient-to-b from-[#00D9FF] to-[#2F8D46] rounded-full"></div>
-              Contact
-            </h4>
-            <ul className="space-y-4">
-              <li>
-                <a
-                  href="mailto:avinashjha19@outlook.com"
-                  className="text-gray-400 hover:text-[#00D9FF] font-mono text-sm transition-colors duration-300 flex items-center gap-3 group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-[#00D9FF]/10 flex items-center justify-center group-hover:bg-[#00D9FF]/20 transition-colors">
-                    <FontAwesomeIcon icon={faEnvelope} className="text-[#00D9FF]" />
-                  </div>
-                  <span className="break-all">avinashjha19@outlook.com</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/Avinash2912"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white font-mono text-sm transition-colors duration-300 flex items-center gap-3 group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
-                    <FontAwesomeIcon icon={faGithub} className="text-white" />
-                  </div>
-                  <span>github.com/Avinash2912</span>
-                </a>
-              </li>
+          {/* Connection Gateways (4 Columns) */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="text-xs font-mono tracking-widest text-gray-500 uppercase">
+              // Connection Gateways
+            </div>
+            <div className="flex flex-col gap-4">
+              <a 
+                href="mailto:avinashjha19@outlook.com"
+                className="group flex items-center justify-between p-4 rounded-xl bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.05] hover:border-[#e05a1c]/30 transition-all duration-300"
+              >
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono text-gray-500 tracking-widest uppercase">SECURE_MAIL_ENDPOINT</span>
+                  <span className="text-base font-sans text-gray-300 group-hover:text-white transition-colors">avinashjha19@outlook.com</span>
+                </div>
+                <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="text-sm text-gray-600 group-hover:text-[#e05a1c] transition-colors duration-300 mr-2" />
+              </a>
               
-            </ul>
+              {/* Grid System for Social Modules */}
+              <div className="grid grid-cols-3 gap-3">
+                {socials.map((soc, i) => (
+                  <a
+                    key={i}
+                    href={soc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex flex-col items-center justify-center py-4 px-3 rounded-xl bg-white/[0.01] border border-white/[0.05] transition-all duration-300 text-gray-400 ${soc.color} group gap-2`}
+                  >
+                    <FontAwesomeIcon icon={soc.icon} className="text-lg group-hover:scale-110 transition-transform duration-300" />
+                    <span className="text-xs font-mono tracking-wider text-gray-500 mt-0.5">{soc.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* Social Links */}
-          <div>
-            <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
-              <div className="w-1 h-6 bg-gradient-to-b from-[#FF6C37] to-[#FFA116] rounded-full"></div>
-              Connect
-            </h4>
-            <div className="flex flex-wrap gap-3 mb-6">
-              {socialLinks.map((social, index) => (
-                <a
-                  key={index}
-                  href={social.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative"
-                  title={social.name}
-                >
-                  <div 
-                    className="w-12 h-12 rounded-xl bg-[#1a1a1a] border border-white/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:border-transparent"
-                    style={{
-                      boxShadow: `0 0 0 0 ${social.color}00`,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = social.color + '20';
-                      e.currentTarget.style.boxShadow = `0 0 20px ${social.color}40`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#1a1a1a';
-                      e.currentTarget.style.boxShadow = `0 0 0 0 ${social.color}00`;
-                    }}
-                  >
-                    <FontAwesomeIcon 
-                      icon={social.icon} 
-                      className="text-lg transition-colors"
-                      style={{ color: social.color }}
-                    />
-                  </div>
-                </a>
-              ))}
-            </div>
-            <div className="p-4 bg-gradient-to-br from-[#FFA116]/10 to-[#FF6C37]/10 rounded-xl border border-[#FFA116]/20">
-              <p className="text-gray-400 font-mono text-xs leading-relaxed">
-                Open to exciting opportunities and collaborations. Let's build something amazing together!
-              </p>
-            </div>
+        </div>
+
+        {/* SYSTEM ANALYTICS COMPONENT BAR (Un-cluttered Matrix) */}
+        <div className="p-6 rounded-xl bg-white/[0.01] border border-white/[0.04] backdrop-blur-md grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-4 text-xs font-mono text-gray-400">
+          <div className="flex flex-col gap-1.5 pl-2">
+            <span className="text-gray-600 font-bold text-[10px] tracking-widest uppercase">// Runtime Env</span>
+            <span className="text-sm text-gray-300 font-sans">React 19 + Tailwind CSS + Vite</span>
+          </div>
+          <div className="flex flex-col gap-1.5 border-t sm:border-t-0 sm:border-x border-white/[0.06] pt-4 sm:pt-0 sm:px-6">
+            <span className="text-gray-600 font-bold text-[10px] tracking-widest uppercase">// System Health</span>
+            <span className="text-sm text-gray-300 font-sans flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" /> All systems operational
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5 pt-4 sm:pt-0 sm:pl-6">
+            <span className="text-gray-600 font-bold text-[10px] tracking-widest uppercase">// Compilation</span>
+            <span className="text-sm text-gray-300 font-sans">Build production-v2.6 deployed</span>
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-8"></div>
-
-        {/* Bottom Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 text-gray-400 font-mono text-sm">
-            <span>© {currentYear} Avinash Jha. Made with</span>
-            <FontAwesomeIcon icon={faHeart} className="text-red-500 animate-pulse" />
-            <span>and</span>
-            <FontAwesomeIcon icon={faCode} className="text-[#FFA116]" />
+        {/* BOTTOM METADATA TRACK BAR */}
+        <div className="flex flex-col sm:flex-row justify-between items-center pt-4 text-sm text-gray-500 gap-6">
+          <div className="font-sans text-gray-400 text-base">
+            © {currentYear} <span className="font-bold text-white tracking-wide">Avinash Jha</span>. All rights reserved.
           </div>
-
-          <div className="flex items-center gap-4">
-            <span className="text-gray-500 font-mono text-xs">Built with React + Vite + Tailwind</span>
+          
+          <div className="flex items-center gap-8 font-mono text-xs">
+            <span className="text-gray-600 hidden md:inline tracking-wider">LATENCY: 24ms // PACKETS: 0_DROP</span>
             
-            {/* Scroll to Top Button */}
+            {/* Elegant Large Scroll Action */}
             <button
               onClick={scrollToTop}
-              className="group w-10 h-10 rounded-lg bg-linear-to-br from-[#FFA116] to-[#FF6C37] flex items-center justify-center hover:scale-110 transition-all duration-300 shadow-lg hover:shadow-[#FFA116]/50"
-              title="Back to top"
+              className="group flex items-center justify-center w-10 h-10 rounded-xl bg-white/[0.02] hover:bg-[#e05a1c] border border-white/[0.08] hover:border-transparent transition-all duration-300 shadow-md hover:shadow-[#e05a1c]/20"
+              title="Return to top"
             >
               <FontAwesomeIcon 
                 icon={faArrowUp} 
-                className="text-white group-hover:-translate-y-0.5 transition-transform duration-300" 
+                className="text-gray-400 group-hover:text-black group-hover:-translate-y-1 transition-all duration-300 text-sm" 
               />
             </button>
           </div>
         </div>
 
-        {/* Tech Stack Badge */}
-        
       </div>
     </footer>
   );

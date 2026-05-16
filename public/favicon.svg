@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Avinash Jha">
+  <defs>
+    <linearGradient id="g" x1="14" y1="14" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFA116"/>
+      <stop offset="1" stop-color="#E05A1C"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="32" cy="32" r="30" fill="#0B0B0B"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="url(#g)" stroke-width="2" opacity="0.95"/>
+
+  <!-- Simple geometric mark -->
+  <path d="M32 14 L18 50 H24.5 L27.8 42 H36.2 L39.5 50 H46 L32 14 Z" fill="url(#g)"/>
+  <rect x="28.4" y="35" width="7.2" height="3" rx="1.2" fill="#0B0B0B" opacity="0.95"/>
+</svg>
