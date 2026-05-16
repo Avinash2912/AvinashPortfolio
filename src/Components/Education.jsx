@@ -2,7 +2,9 @@ import React, { useRef, useEffect, useState } from "react";
 
 const entries = [
   {
-    years: ["2021", "–", "2025"],
+    branch: "feat/undergrad-cse",
+    hash: "b7ec41a",
+    years: "2021 – 2025",
     label: "Undergraduate · Computer Science",
     degree: "B.Tech in Computer Science Engineering",
     school: "Guru Gobind Singh Indraprastha University",
@@ -13,7 +15,9 @@ const entries = [
     ],
   },
   {
-    years: ["2019", "–", "2020"],
+    branch: "feat/class-xii",
+    hash: "c65e12b",
+    years: "2019 – 2020",
     label: "Senior Secondary · Class XII",
     degree: "Senior Secondary (Class XII)",
     school: "CBSE Board",
@@ -23,7 +27,9 @@ const entries = [
     ],
   },
   {
-    years: ["2017", "–", "2018"],
+    branch: "feat/class-x",
+    hash: "a104f9e",
+    years: "2017 – 2018",
     label: "Secondary · Class X",
     degree: "Secondary (Class X)",
     school: "CBSE Board",
@@ -58,7 +64,6 @@ function HexMesh() {
       const cy = row * h + (col % 2 === 0 ? 0 : h / 2);
       const skip = (col * 7 + row * 13) % 5 === 0;
       if (skip) continue;
-      // a handful of hexes get a faint orange tint — purely static
       const isAccent = (col * 3 + row * 5) % 23 === 0;
       hexes.push({ cx, cy, isAccent, id: `h-${col}-${row}` });
     }
@@ -83,7 +88,6 @@ function HexMesh() {
         </radialGradient>
       </defs>
 
-      {/* All hex outlines — uniform very low opacity */}
       <g>
         {hexes.map(({ cx, cy, isAccent, id }) => (
           <path
@@ -96,7 +100,6 @@ function HexMesh() {
         ))}
       </g>
 
-      {/* Sparse vertex dots — barely visible */}
       {hexes
         .filter((_, i) => i % 9 === 0)
         .map(({ cx, cy, id }) =>
@@ -113,8 +116,6 @@ function HexMesh() {
             );
           })
         )}
-
-      {/* Vignette — pulls edges to black so hex fades out gracefully */}
       <rect x="0" y="0" width="1440" height="900" fill="url(#hex-vignette)" />
     </svg>
   );
@@ -209,7 +210,6 @@ export default function Education() {
           pointer-events: none;
         }
 
-        /* Diagonal stripe texture */
         .edu-stripes {
           position: absolute;
           inset: 0;
@@ -238,16 +238,11 @@ export default function Education() {
       <div className="edu-aurora" style={{ width: 600, height: 600, background: "rgba(160,50,10,0.10)", bottom: "-18%", right: "-10%", animationDuration: "18s", animationDelay: "5s" }} />
       <div className="edu-aurora" style={{ width: 400, height: 400, background: "rgba(224,90,28,0.07)", top: "40%", right: "20%", animationDuration: "14s", animationDelay: "9s" }} />
 
-      {/* Diagonal stripes */}
       <div className="edu-stripes" />
-
-      {/* Hexagonal mesh */}
       <HexMesh />
-
-      {/* Floating particles */}
       <DataParticles />
 
-      {/* Content */}
+      {/* Content Container */}
       <div style={{ position: "relative", zIndex: 2, maxWidth: 980, margin: "0 auto" }}>
 
         {/* Eyebrow */}
@@ -265,7 +260,7 @@ export default function Education() {
           }}
         >
           <span style={{ width: 28, height: 1, background: "#e05a1c", opacity: 0.6 }} />
-          Academic Record
+          git log --graph --all
         </div>
 
         {/* Heading */}
@@ -276,24 +271,22 @@ export default function Education() {
             fontWeight: 400,
             color: "#fff",
             lineHeight: 1.05,
-            marginBottom: "4rem",
+            marginBottom: "5rem",
             letterSpacing: "-0.04em",
           }}
         >
           Edu<em style={{ fontStyle: "italic", color: "#e05a1c" }}>cation</em>
         </h2>
 
-        {/* Timeline */}
-        <div style={{ position: "relative" }}>
-          <div
-            style={{
-              position: "absolute",
-              left: 78, top: 0, bottom: 0, width: 1,
-              background: "linear-gradient(to bottom, rgba(224,90,28,0.45), rgba(255,255,255,0.08))",
-            }}
-          />
+        {/* Git Tree Interface */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {entries.map((entry, i) => (
-            <TimelineCard key={i} entry={entry} isLast={i === entries.length - 1} />
+            <GitNode 
+              key={i} 
+              entry={entry} 
+              isFirst={i === 0}
+              isLast={i === entries.length - 1} 
+            />
           ))}
         </div>
       </div>
@@ -301,167 +294,214 @@ export default function Education() {
   );
 }
 
-function TimelineCard({ entry, isLast }) {
+function GitNode({ entry, isFirst, isLast }) {
   const [hovered, setHovered] = useState(false);
 
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "70px 1fr",
-        gap: "0 2.5rem",
+        gridTemplateColumns: "120px 1fr",
+        gap: "0 2rem",
         position: "relative",
-        paddingBottom: !isLast ? "2.8rem" : 0,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Years */}
-      <div
-        style={{
-          fontFamily: "'DM Mono', monospace",
-          fontSize: 10,
-          color: "rgba(255,255,255,0.28)",
-          lineHeight: 1.7,
-          textAlign: "right",
-          paddingTop: 8,
-          letterSpacing: "0.08em",
-        }}
-      >
-        {entry.years.map((year, idx) => (
-          <div key={idx}>{year}</div>
-        ))}
-      </div>
-
-      {/* Timeline dot */}
-      <div
-        style={{
-          position: "absolute",
-          left: 73, top: 12,
-          width: 12, height: 12,
-          borderRadius: "50%",
-          background: hovered ? "#e05a1c" : "#000",
-          border: "1px solid rgba(224,90,28,0.6)",
-          transition: "all 0.35s ease",
-          boxShadow: hovered ? "0 0 20px rgba(224,90,28,0.75)" : "none",
-          zIndex: 2,
-        }}
-      />
-
-      {/* Card */}
-      <div
-        style={{
-          position: "relative",
-          background: hovered ? "rgba(18,18,18,0.88)" : "rgba(10,10,10,0.75)",
-          border: hovered
-            ? "1px solid rgba(224,90,28,0.28)"
-            : "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 24,
-          padding: "1.9rem",
-          backdropFilter: "blur(24px)",
-          overflow: "hidden",
-          transition: "all 0.35s ease",
-          transform: hovered ? "translateY(-6px)" : "translateY(0px)",
-          boxShadow: hovered
-            ? "0 12px 48px rgba(224,90,28,0.14), 0 0 0 1px rgba(224,90,28,0.06)"
-            : "none",
-        }}
-      >
-        {/* Inner corner accent — top-left hex motif */}
-        <svg
-          aria-hidden="true"
-          style={{ position: "absolute", top: 0, right: 0, opacity: hovered ? 0.35 : 0.12, transition: "opacity 0.35s ease" }}
-          width="80" height="80" viewBox="0 0 80 80"
-        >
-          <path
-            d="M 80 0 L 80 38 L 62 48 L 44 38 L 44 18 L 62 8 Z"
-            fill="none"
-            stroke="rgba(224,90,28,0.8)"
-            strokeWidth="0.8"
-          />
-          <path
-            d="M 80 16 L 80 54 L 58 66 L 36 54 L 36 30 L 58 18 Z"
-            fill="none"
-            stroke="rgba(224,90,28,0.4)"
-            strokeWidth="0.5"
-          />
-        </svg>
-
-        {/* Glow */}
+      {/* LEFT COLUMN: Git Diagram Track Graphs */}
+      <div style={{ position: "relative", minHeight: "180px" }}>
+        
+        {/* Main Branch Line (White / Pale) */}
         <div
           style={{
-            position: "absolute", inset: 0, pointerEvents: "none",
-            background: hovered
-              ? "radial-gradient(circle at top right, rgba(224,90,28,0.10), transparent 50%)"
-              : "transparent",
-            transition: "0.35s ease",
+            position: "absolute",
+            left: 30,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            background: "rgba(255, 255, 255, 0.15)",
           }}
         />
 
-        {/* Label */}
+        {/* Feature Branch Deviating/Merging Track Line (Orange) */}
+        <svg
+          style={{
+            position: "absolute",
+            left: 30,
+            top: 0,
+            width: 60,
+            height: "100%",
+            overflow: "visible",
+            pointerEvents: "none",
+          }}
+        >
+          {/* Branch curve path layout */}
+          <path
+            d={isLast 
+              ? "M 0 24 Q 30 35 30 65 L 30 115 Q 30 145 0 155" 
+              : "M 0 24 Q 30 35 30 65 L 30 140 Q 30 175 0 185"
+            }
+            fill="none"
+            stroke={hovered ? "#e05a1c" : "rgba(224,90,28,0.4)"}
+            strokeWidth="2"
+            style={{ transition: "stroke 0.35s ease" }}
+          />
+        </svg>
+
+        {/* Main Track Commit Dot */}
         <div
           style={{
-            position: "relative",
+            position: "absolute",
+            left: 26,
+            top: 20,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: "#111",
+            border: "2px solid rgba(255,255,255,0.4)",
+            zIndex: 3,
+          }}
+        />
+
+        {/* Feature Track Milestone Commit Node */}
+        <div
+          style={{
+            position: "absolute",
+            left: 55,
+            top: 85,
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            background: hovered ? "#e05a1c" : "#000",
+            border: "2px solid #e05a1c",
+            transition: "all 0.35s ease",
+            boxShadow: hovered ? "0 0 16px #e05a1c" : "none",
+            zIndex: 3,
+          }}
+        />
+        
+        {/* Branch Tags & Details vertically positioned in the timeline column */}
+        <div 
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 135,
+            width: "120px",
+            textAlign: "center",
             fontFamily: "'DM Mono', monospace",
-            fontSize: 9,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.22)",
-            marginBottom: 8,
+            fontSize: 10,
+            color: hovered ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.25)",
+            transition: "color 0.35s ease",
           }}
         >
-          {entry.label}
+          {entry.years}
         </div>
+      </div>
 
-        {/* Degree */}
+      {/* RIGHT COLUMN: Terminal Style Commit Details */}
+      <div
+        style={{
+          paddingTop: "12px",
+          paddingBottom: "40px",
+          position: "relative",
+        }}
+      >
+        {/* Terminal Header Info Row */}
         <div
           style={{
-            position: "relative",
-            fontFamily: "'DM Serif Display', serif",
-            fontSize: 24,
-            lineHeight: 1.25,
-            color: "#fff",
-            marginBottom: 6,
-            letterSpacing: "-0.02em",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 11,
+            marginBottom: "12px",
           }}
         >
-          {entry.degree}
+          <span style={{ color: "#e05a1c", fontWeight: 500 }}>commit {entry.hash}</span>
+          <span style={{ color: "rgba(255,255,255,0.15)" }}>|</span>
+          <span 
+            style={{ 
+              background: hovered ? "rgba(224,90,28,0.15)" : "rgba(255,255,255,0.04)",
+              color: hovered ? "#e05a1c" : "rgba(255,255,255,0.45)",
+              padding: "2px 8px",
+              borderRadius: "4px",
+              border: hovered ? "1px solid rgba(224,90,28,0.3)" : "1px solid rgba(255,255,255,0.06)",
+              transition: "all 0.35s ease"
+            }}
+          >
+            {entry.branch}
+          </span>
         </div>
 
-        {/* School */}
+        {/* Text Area block without standard heavy card containers */}
         <div
           style={{
-            position: "relative",
-            fontFamily: "'Manrope', sans-serif",
-            fontSize: 14,
-            color: "rgba(255,255,255,0.42)",
-            marginBottom: 18,
+            transform: hovered ? "translateX(6px)" : "translateX(0px)",
+            transition: "transform 0.35s ease",
           }}
         >
-          {entry.school}
-        </div>
+          {/* Label Metadata */}
+          <div
+            style={{
+              fontFamily: "'DM Mono', monospace",
+              fontSize: 9,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.35)",
+              marginBottom: 4,
+            }}
+          >
+            {entry.label}
+          </div>
 
-        {/* Pills */}
-        <div style={{ position: "relative", display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {entry.pills.map((pill, idx) => (
-            <span
-              key={idx}
-              style={{
-                fontFamily: "'DM Mono', monospace",
-                fontSize: 10,
-                letterSpacing: "0.05em",
-                padding: "6px 13px",
-                borderRadius: 999,
-                border: pill.accent
-                  ? "1px solid rgba(224,90,28,0.32)"
-                  : "1px solid rgba(255,255,255,0.1)",
-                background: pill.accent ? "rgba(224,90,28,0.08)" : "transparent",
-                color: pill.accent ? "#e05a1c" : "rgba(255,255,255,0.5)",
-              }}
-            >
-              {pill.text}
-            </span>
-          ))}
+          {/* Core Title */}
+          <h3
+            style={{
+              fontFamily: "'Manrope', sans-serif",
+              fontSize: "20px",
+              fontWeight: 600,
+              color: hovered ? "#fff" : "rgba(255,255,255,0.9)",
+              lineHeight: 1.3,
+              marginBottom: 4,
+              transition: "color 0.35s ease",
+            }}
+          >
+            {entry.degree}
+          </h3>
+
+          {/* Institution Subtext */}
+          <div
+            style={{
+              fontFamily: "'Manrope', sans-serif",
+              fontSize: 14,
+              color: "rgba(255,255,255,0.45)",
+              marginBottom: 16,
+            }}
+          >
+            {entry.school}
+          </div>
+
+          {/* Interactive Metric Pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {entry.pills.map((pill, idx) => (
+              <span
+                key={idx}
+                style={{
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: 10,
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                  border: pill.accent
+                    ? "1px solid rgba(224,90,28,0.25)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                  background: pill.accent ? "rgba(224,90,28,0.05)" : "rgba(255,255,255,0.01)",
+                  color: pill.accent ? "#e05a1c" : "rgba(255,255,255,0.4)",
+                }}
+              >
+                {pill.accent ? "❯ " : ""}{pill.text}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

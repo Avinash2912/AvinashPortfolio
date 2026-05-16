@@ -6,10 +6,13 @@ import {
   faStar, 
   faCodeFork, 
   faExternalLinkAlt,
-  faClock,
+  faTerminal,
   faCircle,
   faLayerGroup,
-  faDownload
+  faDownload,
+  faServer,
+  faCube,
+  faSlidersH
 } from '@fortawesome/free-solid-svg-icons';
 import { faGithub, faDocker } from '@fortawesome/free-brands-svg-icons';
 
@@ -17,9 +20,8 @@ export const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [runningContainers, setRunningContainers] = useState([]);
-  const [hoveredProject, setHoveredProject] = useState(null);
   const [displayCount, setDisplayCount] = useState(6);
-  const PROJECTS_PER_LOAD = 5;
+  const PROJECTS_PER_LOAD = 6;
 
   useEffect(() => {
     fetchGitHubProjects();
@@ -33,31 +35,34 @@ export const Projects = () => {
       const filteredProjects = data
         .filter(repo => !repo.fork && !repo.private)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-        .map((repo, index) => ({
-          id: repo.id,
-          containerName: repo.name.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-          name: repo.name,
-          image: `${repo.name.toLowerCase()}:latest`,
-          description: repo.description || 'No description available',
-          language: repo.language || 'Unknown',
-          stars: repo.stargazers_count,
-          forks: repo.forks_count,
-          url: repo.html_url,
-          homepage: repo.homepage,
-          topics: repo.topics || [],
-          size: `${Math.floor(Math.random() * 500) + 50}MB`,
-          port: Math.floor(Math.random() * 9000) + 3000,
-          status: Math.random() > 0.7 ? 'running' : 'exited',
-          uptime: Math.random() > 0.5 ? `${Math.floor(Math.random() * 48)}h ago` : `${Math.floor(Math.random() * 30)}d ago`,
-          updated: new Date(repo.updated_at).toLocaleDateString(),
-          created: new Date(repo.created_at).toLocaleDateString()
-        }));
+        .map((repo) => {
+          const sizeNum = Math.floor(Math.random() * 450) + 50; 
+          return {
+            id: repo.id,
+            containerName: repo.name.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+            name: repo.name,
+            image: `${repo.name.toLowerCase()}:latest`,
+            description: repo.description || 'No system breakdown manifest supplied.',
+            language: repo.language || 'Unknown',
+            stars: repo.stargazers_count,
+            forks: repo.forks_count,
+            url: repo.html_url,
+            homepage: repo.homepage,
+            topics: repo.topics || [],
+            sizeValue: sizeNum, 
+            size: `${sizeNum}MB`,
+            port: Math.floor(Math.random() * 9000) + 3000,
+            status: Math.random() > 0.6 ? 'running' : 'exited',
+            uptime: Math.random() > 0.5 ? `${Math.floor(Math.random() * 48)}h ago` : `${Math.floor(Math.random() * 30)}d ago`,
+            updated: new Date(repo.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          };
+        });
       
       setProjects(filteredProjects);
       setRunningContainers(filteredProjects.filter(p => p.status === 'running').map(p => p.id));
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('Error fetching engines:', error);
       setLoading(false);
     }
   };
@@ -72,243 +77,230 @@ export const Projects = () => {
 
   const getLanguageColor = (lang) => {
     const colors = {
-      JavaScript: '#f7df1e',
-      Python: '#3776ab',
-      TypeScript: '#3178c6',
-      Java: '#007396',
-      'C++': '#00599c',
-      HTML: '#e34c26',
-      CSS: '#264de4',
-      React: '#61dafb',
-      Vue: '#42b883',
-      Go: '#00add8',
-      Rust: '#dea584',
-      Ruby: '#cc342d',
-      PHP: '#777bb4',
-      Swift: '#fa7343',
-      Kotlin: '#7f52ff',
-      Dart: '#0175c2',
-      Shell: '#89e051',
-      Unknown: '#8b949e'
+      JavaScript: '#f7df1e', Python: '#3776ab', TypeScript: '#3178c6',
+      Java: '#007396', 'C++': '#00599c', HTML: '#e34c26', CSS: '#264de4',
+      React: '#61dafb', Vue: '#42b883', Go: '#00add8', Rust: '#dea584',
+      Shell: '#89e051', Unknown: '#4f5b66'
     };
-    return colors[lang] || '#8b949e';
-  };
-
-  const loadMoreProjects = () => {
-    setDisplayCount(prev => prev + PROJECTS_PER_LOAD);
+    return colors[lang] || '#6f7a85';
   };
 
   const displayedProjects = projects.slice(0, displayCount);
   const hasMoreProjects = displayCount < projects.length;
 
   return (
-    <section id="projects" className="relative min-h-screen py-20 px-6 overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-linear-to-b from-[#0d1117] via-[#0d1b2a] to-[#000000]"></div>
+    <section id="projects" className="relative min-h-screen bg-[#080b10] py-20 px-4 md:px-8 text-slate-100 font-mono selection:bg-[#2496ed] selection:text-black">
+      {/* Structural Subtle Cyber Grid Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-5xl md:text-6xl font-bold mb-4 flex items-center justify-center gap-4">
-            <FontAwesomeIcon icon={faDocker} className="text-[#2496ed]" />
-            <span className="bg-linear-to-r from-[#2496ed] to-[#1d7dc2] bg-clip-text text-transparent">
-              Project Containers
-            </span>
-          </h2>
-          <div className="w-32 h-1 bg-linear-to-r from-[#2496ed] to-[#1d7dc2] mx-auto rounded-full mb-6"></div>
-          <p className="text-gray-400 text-lg font-mono">docker ps -a --format table</p>
-        </div>
-
-        {/* Docker Stats Bar */}
-        <div className="bg-[#0d1117] border border-[#2496ed]/30 rounded-lg p-4 mb-6 flex flex-wrap gap-6 justify-center font-mono text-sm">
-          <div className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faCircle} className="text-green-400 text-xs" />
-            <span className="text-gray-400">Running:</span>
-            <span className="text-white font-bold">{runningContainers.length}</span>
+      <div className="relative max-w-7xl mx-auto space-y-10">
+        
+        {/* TOP COMPONENT HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-800 pb-8 gap-4">
+          <div>
+            <div className="flex items-center gap-3 text-[#2496ed] font-bold tracking-widest text-xs uppercase mb-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              System Environment // Production
+            </div>
+            <h2 className="text-4xl font-black tracking-tight text-white flex items-center gap-3">
+              <FontAwesomeIcon icon={faDocker} className="text-[#2496ed]" /> Cluster Nodes
+            </h2>
           </div>
-          <div className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faCircle} className="text-gray-500 text-xs" />
-            <span className="text-gray-400">Stopped:</span>
-            <span className="text-white font-bold">{projects.length - runningContainers.length}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faLayerGroup} className="text-[#2496ed]" />
-            <span className="text-gray-400">Displayed:</span>
-            <span className="text-white font-bold">{displayedProjects.length}/{projects.length}</span>
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center gap-3 text-xs text-slate-400">
+            <FontAwesomeIcon icon={faTerminal} className="text-emerald-400" />
+            <span>docker engine service --status=active</span>
           </div>
         </div>
 
-        {/* Loading State */}
+        {/* LOADING STATE */}
         {loading && (
-          <div className="text-center py-20">
-            <FontAwesomeIcon icon={faDocker} className="text-6xl text-[#2496ed] mb-4 animate-pulse" />
-            <p className="text-gray-400 mt-4 font-mono">Pulling containers from registry...</p>
+          <div className="flex flex-col items-center justify-center py-32 space-y-4 border border-dashed border-slate-800 rounded-xl bg-slate-900/20">
+            <FontAwesomeIcon icon={faDocker} className="text-5xl text-[#2496ed] animate-spin [animation-duration:3s]" />
+            <div className="text-xs tracking-widest uppercase text-slate-500 animate-pulse">Synchronizing remote clusters...</div>
           </div>
         )}
 
-        {/* Docker Container Grid */}
+        {/* MAIN DASHBOARD STRUCTURE */}
         {!loading && projects.length > 0 && (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {displayedProjects.map((project) => {
-              const isRunning = runningContainers.includes(project.id);
-              
-              return (
-                <div
-                  key={project.id}
-                  onMouseEnter={() => setHoveredProject(project.id)}
-                  onMouseLeave={() => setHoveredProject(null)}
-                  className={`bg-[#0d1117] border-2 rounded-lg overflow-hidden transition-all duration-300 ${
-                    isRunning 
-                      ? 'border-[#2496ed] shadow-[0_0_20px_rgba(36,150,237,0.3)]' 
-                      : 'border-[#30363d] hover:border-[#2496ed]/50'
-                  }`}
-                >
-                  {/* Container Header */}
-                  <div className={`px-4 py-3 border-b flex items-center justify-between ${
-                    isRunning ? 'bg-[#2496ed]/10 border-[#2496ed]/30' : 'bg-[#161b22] border-[#30363d]'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <FontAwesomeIcon 
-                        icon={faDocker} 
-                        className={`text-2xl ${isRunning ? 'text-[#2496ed]' : 'text-gray-500'}`} 
-                      />
-                      <div>
-                        <div className="font-bold text-white font-mono">{project.containerName}</div>
-                        <div className="text-xs text-gray-400 font-mono">{project.image}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className={`flex items-center gap-1 text-xs font-mono px-2 py-1 rounded ${
-                        isRunning 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-gray-500/20 text-gray-400'
-                      }`}>
-                        <FontAwesomeIcon icon={faCircle} className="text-[8px]" />
-                        {isRunning ? 'UP' : 'EXITED'}
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+            
+            {/* SIDEBAR DOCKER MONITOR MATRIX */}
+            <div className="lg:col-span-1 space-y-4 lg:sticky lg:top-8">
+              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-md space-y-6">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <FontAwesomeIcon icon={faSlidersH} className="text-[#2496ed]" /> Cluster Metrics
+                </div>
+                
+                <div className="space-y-3.5">
+                  <div className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-900">
+                    <span className="text-xs text-slate-400 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faCircle} className="text-emerald-400 text-[10px]" /> Healthy
+                    </span>
+                    <span className="text-sm font-bold text-emerald-400">{runningContainers.length}</span>
                   </div>
-
-                  {/* Container Body */}
-                  <div className="p-4">
-                    {/* Description */}
-                    <p className="text-gray-300 text-sm mb-4 min-h-[40px]">
-                      {project.description}
-                    </p>
-
-                    {/* Container Info Grid */}
-                    <div className="grid grid-cols-2 gap-3 mb-4 font-mono text-xs">
-                      <div className="bg-[#161b22] rounded p-2">
-                        <div className="text-gray-500 mb-1">LANGUAGE</div>
-                        <div className="flex items-center gap-2">
-                          <span 
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: getLanguageColor(project.language) }}
-                          ></span>
-                          <span className="text-white">{project.language}</span>
-                        </div>
-                      </div>
-                      <div className="bg-[#161b22] rounded p-2">
-                        <div className="text-gray-500 mb-1">SIZE</div>
-                        <div className="text-white">{project.size}</div>
-                      </div>
-                      <div className="bg-[#161b22] rounded p-2">
-                        <div className="text-gray-500 mb-1">PORT</div>
-                        <div className="text-[#2496ed]">{project.port}</div>
-                      </div>
-                      <div className="bg-[#161b22] rounded p-2">
-                        <div className="text-gray-500 mb-1">UPTIME</div>
-                        <div className="text-white">{project.uptime}</div>
-                      </div>
-                    </div>
-
-                    {/* Tags */}
-                    {project.topics.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {project.topics.slice(0, 4).map((topic, i) => (
-                          <span 
-                            key={i}
-                            className="px-2 py-1 bg-[#161b22] text-[#2496ed] text-xs font-mono rounded border border-[#30363d]"
-                          >
-                            {topic}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Stats */}
-                    <div className="flex items-center gap-4 text-sm text-gray-400 mb-4 font-mono">
-                      <div className="flex items-center gap-1">
-                        <FontAwesomeIcon icon={faStar} className="text-yellow-400" />
-                        <span>{project.stars}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <FontAwesomeIcon icon={faCodeFork} />
-                        <span>{project.forks}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <FontAwesomeIcon icon={faClock} />
-                        <span>{project.updated}</span>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => toggleContainer(project.id)}
-                        className={`flex-1 font-bold py-2 px-4 rounded font-mono text-sm transition-all ${
-                          isRunning
-                            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50'
-                            : 'bg-[#2496ed] text-white hover:bg-[#1d7dc2]'
-                        }`}
-                      >
-                        <FontAwesomeIcon icon={isRunning ? faStop : faPlay} className="mr-2" />
-                        {isRunning ? 'STOP' : 'RUN'}
-                      </button>
-                      
-                      <a
-                        href={project.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-[#161b22] hover:bg-[#21262d] text-white font-bold py-2 px-4 rounded font-mono text-sm transition-colors border border-[#30363d] hover:border-[#2496ed]"
-                        title="View on GitHub"
-                      >
-                        <FontAwesomeIcon icon={faGithub} />
-                      </a>
-                      
-                      {project.homepage && (
-                        <a
-                          href={project.homepage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-[#161b22] hover:bg-[#21262d] text-white font-bold py-2 px-4 rounded font-mono text-sm transition-colors border border-[#30363d] hover:border-[#2496ed]"
-                          title="Live Demo"
-                        >
-                          <FontAwesomeIcon icon={faExternalLinkAlt} />
-                        </a>
-                      )}
-                    </div>
+                  
+                  <div className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-900">
+                    <span className="text-xs text-slate-400 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faCircle} className="text-slate-600 text-[10px]" /> Standby
+                    </span>
+                    <span className="text-sm font-bold text-slate-400">{projects.length - runningContainers.length}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-900">
+                    <span className="text-xs text-slate-400 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faLayerGroup} className="text-amber-500 text-[10px]" /> Map Load
+                    </span>
+                    <span className="text-sm font-bold text-amber-500">{displayedProjects.length} / {projects.length}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Load More Button */}
-          {hasMoreProjects && (
-            <div className="text-center mt-8">
-              <button
-                onClick={loadMoreProjects}
-                className="bg-[#2496ed] hover:bg-[#1d7dc2] text-white font-bold py-3 px-8 rounded-lg font-mono text-sm transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_rgba(36,150,237,0.5)] transform hover:scale-105"
-              >
-                <FontAwesomeIcon icon={faDownload} className="mr-2" />
-                LOAD MORE CONTAINERS ({Math.min(PROJECTS_PER_LOAD, projects.length - displayCount)} more)
-              </button>
+                <div className="border-t border-slate-800/80 pt-4 text-[11px] text-slate-500 leading-relaxed">
+                  Nodes mapped dynamically via personal GitHub registers. Terminating/Initializing containers represents visual state management overrides.
+                </div>
+              </div>
             </div>
-          )}
-        </>
+
+            {/* MAIN CONTAINERS GRID WORKSPACE */}
+            <div className="lg:col-span-3 space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {displayedProjects.map((project) => {
+                  const isRunning = runningContainers.includes(project.id);
+                  
+                  return (
+                    <div
+                      key={project.id}
+                      className={`group relative bg-[#0d121a] border rounded-xl overflow-hidden transition-all duration-300 flex flex-col justify-between ${
+                        isRunning 
+                          ? 'border-[#2496ed]/50 shadow-[0_0_25px_rgba(36,150,237,0.06)]' 
+                          : 'border-slate-800/80 hover:border-slate-700'
+                      }`}
+                    >
+                      {/* Top Action Visual Bar */}
+                      <div className={`h-[3px] w-full transition-all duration-300 ${isRunning ? 'bg-[#2496ed]' : 'bg-slate-800'}`} />
+
+                      <div className="p-5 space-y-4 flex-grow">
+                        {/* Container Card Header */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1 min-w-0">
+                            <h3 className="font-bold text-base text-slate-100 truncate tracking-tight group-hover:text-[#2496ed] transition-colors">
+                              {project.containerName}
+                            </h3>
+                            <div className="text-[11px] text-slate-500 truncate flex items-center gap-1.5">
+                              <FontAwesomeIcon icon={faCube} className="text-xs text-slate-600" />
+                              {project.image}
+                            </div>
+                          </div>
+                          
+                          <span className={`shrink-0 text-[10px] font-bold tracking-widest px-2 py-0.5 rounded border ${
+                            isRunning 
+                              ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' 
+                              : 'bg-slate-900 border-slate-800 text-slate-400'
+                          }`}>
+                            {isRunning ? 'ONLINE' : 'EXITED'}
+                          </span>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 h-8">
+                          {project.description}
+                        </p>
+
+                        {/* Custom Structural Resource Matrix Visual */}
+                        <div className="bg-slate-950/80 border border-slate-900 rounded-lg p-3 space-y-2.5 text-[11px]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getLanguageColor(project.language) }} />
+                              {project.language}
+                            </span>
+                            <span className="text-slate-400 text-right">PORT: <span className="text-[#2496ed] font-bold">{project.port}</span></span>
+                          </div>
+                          
+                          {/* Simulated System Memory/Size Bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-600">
+                              <span>DISK SIZE ALLOC</span>
+                              <span>{project.size}</span>
+                            </div>
+                            <div className="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${isRunning ? 'bg-[#2496ed]' : 'bg-slate-700'}`} 
+                                style={{ width: `${Math.min(100, (project.sizeValue / 500) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Topics/Badges */}
+                        {project.topics.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {project.topics.slice(0, 3).map((topic, i) => (
+                              <span key={i} className="px-2 py-0.5 bg-slate-900 text-slate-400 border border-slate-800 rounded text-[10px]">
+                                #{topic}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Footer Integration Panel */}
+                      <div className="p-4 bg-slate-950/40 border-t border-slate-900 flex items-center gap-2">
+                        <button
+                          onClick={() => toggleContainer(project.id)}
+                          className={`flex-1 flex items-center justify-center gap-2 font-bold py-1.5 px-3 rounded-md text-xs tracking-wider transition-all cursor-pointer ${
+                            isRunning
+                              ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30'
+                              : 'bg-slate-100 text-slate-950 hover:bg-white'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={isRunning ? faStop : faPlay} className="text-[10px]" />
+                          {isRunning ? 'SHUTDOWN' : 'INITIALIZE'}
+                        </button>
+                        
+                        <a
+                          href={project.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-8 h-8 flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-md border border-slate-800 transition-colors"
+                          title="Source Registry"
+                        >
+                          <FontAwesomeIcon icon={faGithub} className="text-sm" />
+                        </a>
+                        
+                        {project.homepage && (
+                          <a
+                            href={project.homepage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-8 h-8 flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-[#2496ed] rounded-md border border-slate-800 transition-colors"
+                            title="Live Container Endpoint"
+                          >
+                            <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* PAGINATION MATRIX ACTIONS */}
+              {hasMoreProjects && (
+                <div className="text-center pt-4">
+                  <button
+                    onClick={() => setDisplayCount(prev => prev + PROJECTS_PER_LOAD)}
+                    className="group px-6 py-3 border border-slate-800 hover:border-[#2496ed] bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-xs tracking-widest font-bold transition-all duration-300 inline-flex items-center gap-3 shadow-md cursor-pointer"
+                  >
+                    <FontAwesomeIcon icon={faDownload} className="text-slate-500 group-hover:text-[#2496ed] transition-colors" />
+                    FETCH NEXT STORAGE BLOCK ({Math.min(PROJECTS_PER_LOAD, projects.length - displayCount)} UNITS)
+                  </button>
+                </div>
+              )}
+            </div>
+
+          </div>
         )}
       </div>
     </section>
