@@ -9,6 +9,7 @@ const ROLES = [
 export const Hero = () => {
   const [currentRole, setCurrentRole] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [pointer, setPointer] = useState({ x: 50, y: 50 });
   const intervalRef = useRef(null);
 
   // Cycle roles with fade-slide animation
@@ -28,9 +29,18 @@ export const Hero = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const handlePointerMove = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    setPointer({ x, y });
+  };
+
   return (
     <div
       id="hero"
+      className="hero-shell"
+      onMouseMove={handlePointerMove}
       style={{
         position: 'relative',
         width: '100%',
@@ -42,6 +52,9 @@ export const Hero = () => {
         justifyContent: 'center',
         overflow: 'hidden',
         padding: '0 1.5rem',
+        isolation: 'isolate',
+        '--mouse-x': `${pointer.x}%`,
+        '--mouse-y': `${pointer.y}%`,
       }}
     >
       <style>{`
@@ -68,6 +81,49 @@ export const Hero = () => {
           0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
           50%       { opacity: 0.72; transform: translate(-50%, -50%) scale(1.05); }
         }
+
+        .hero-shell::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          background-image:
+            repeating-linear-gradient(
+              45deg,
+              rgba(255,255,255,0.05) 0 1px,
+              transparent 1px 80px
+            ),
+            repeating-linear-gradient(
+              -45deg,
+              rgba(255,255,255,0.04) 0 1px,
+              transparent 1px 80px
+            );
+          -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 78%);
+          mask-image: radial-gradient(ellipse at center, #000 30%, transparent 78%);
+          opacity: 0.9;
+        }
+
+        .hero-shell::after {
+          content: "";
+          position: absolute;
+          inset: -10%;
+          z-index: 1;
+          pointer-events: none;
+          background: radial-gradient(
+            circle at var(--mouse-x) var(--mouse-y),
+            rgba(224, 90, 28, 0.28) 0%,
+            rgba(224, 90, 28, 0.12) 16%,
+            rgba(224, 90, 28, 0.04) 28%,
+            transparent 54%
+          );
+          opacity: 0;
+          transition: opacity 0.25s ease;
+        }
+        .hero-shell:hover::after {
+          opacity: 1;
+        }
+
         .hero-glow {
           position: absolute;
           top: 46%; left: 50%;
@@ -92,7 +148,6 @@ export const Hero = () => {
           50%      { box-shadow: 0 0 0 6px rgba(224,90,28,0); }
         }
 
-
         /* ── Content wrapper ── */
         .hero-inner {
           position: relative;
@@ -111,20 +166,28 @@ export const Hero = () => {
         .hero-badge {
           display: inline-flex;
           align-items: center;
-          gap: 0.45rem;
-          font-size: 0.78rem;
-          font-weight: 600;
+          justify-content: center;
+          gap: 0.5rem;
+          font-size: 0.74rem;
+          font-weight: 700;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          color: #e05a1c;
+          color: #f3c19d;
+          background: rgba(224, 90, 28, 0.06);
+          border: 1px solid rgba(224, 90, 28, 0.28);
+          border-radius: 999px;
+          padding: 0.55rem 1rem;
           margin-bottom: 1.6rem;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
           animation: badgePulse 3s ease-in-out infinite;
+          font-family: 'SFMono-Regular', 'Consolas', 'Monaco', monospace;
         }
         .hero-badge .dot {
-          width: 6px; height: 6px;
+          width: 7px; height: 7px;
           border-radius: 50%;
           background: #e05a1c;
           display: inline-block;
+          box-shadow: 0 0 10px rgba(224,90,28,0.7);
         }
 
         /* ── Headline ── */
@@ -136,23 +199,23 @@ export const Hero = () => {
           letter-spacing: -0.01em;
           margin-bottom: 1.5rem;
           font-family: 'Neue Machina', sans-serif;
-          text-transform: capitalize;
         }
         .hero-h1 .name-highlight {
           color: #e05a1c;
         }
-        /* Boxed/outlined role word */
         .role-box-wrapper {
           display: inline-block;
           position: relative;
         }
         .role-box {
           display: inline-block;
-          border: 2px solid rgba(255,255,255,0.55);
-          border-radius: 6px;
-          padding: 0 0.35em;
+          border: 1.5px solid rgba(224,90,28,0.45);
+          background: rgba(224,90,28,0.06);
+          border-radius: 12px;
+          padding: 0.08em 0.52em;
           line-height: inherit;
           position: relative;
+          box-shadow: inset 0 0 0 1px rgba(224,90,28,0.08);
         }
         .role-text {
           display: inline-block;
@@ -166,8 +229,8 @@ export const Hero = () => {
         .hero-sub {
           font-size: clamp(1rem, 1.8vw, 1.125rem);
           font-weight: 400;
-          color: rgba(255,255,255,0.52);
-          max-width: 580px;
+          color: #b3b3b3;
+          max-width: 640px;
           line-height: 1.75;
           margin-bottom: 2rem;
           animation: fadeUp 1.1s 0.2s cubic-bezier(0.22,1,0.36,1) both;
@@ -177,6 +240,7 @@ export const Hero = () => {
         .hero-social-proof {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 0.85rem;
           margin-bottom: 2.2rem;
           animation: fadeUp 1.1s 0.35s cubic-bezier(0.22,1,0.36,1) both;
@@ -185,22 +249,22 @@ export const Hero = () => {
           display: flex;
         }
         .avatar-item {
-          width: 34px; height: 34px;
+          width: 32px; height: 32px;
           border-radius: 50%;
           border: 2px solid #050505;
           object-fit: cover;
-          margin-left: -10px;
+          margin-left: -8px;
           animation: avatarPop 0.4s ease both;
           background: #1a1a1a;
           display: flex; align-items: center; justify-content: center;
-          font-size: 0.75rem; font-weight: 700; color: #fff;
+          font-size: 0.7rem; font-weight: 700; color: #fff;
           flex-shrink: 0;
           overflow: hidden;
         }
         .avatar-item:first-child { margin-left: 0; }
         .social-proof-text {
           font-size: 0.9375rem;
-          color: rgba(255,255,255,0.65);
+          color: rgba(255,255,255,0.72);
           font-weight: 400;
         }
         .social-proof-text strong {
@@ -238,6 +302,12 @@ export const Hero = () => {
           background: #c44d15;
           transform: translateY(-2px);
           box-shadow: 0 10px 36px rgba(224,90,28,0.55);
+        }
+        .btn-primary:focus-visible,
+        .btn-secondary:focus-visible,
+        .hero-nav-link:focus-visible {
+          outline: 2px solid #ffd0a8;
+          outline-offset: 3px;
         }
         .btn-secondary {
           padding: 0.85rem 2.2rem;
@@ -277,63 +347,40 @@ export const Hero = () => {
       {/* Warm glow */}
       <div className="hero-glow" aria-hidden="true" />
 
-      {/* SVG: diagonal X-lines through center */}
-      <svg
-        aria-hidden="true"
-        style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          zIndex: 2, pointerEvents: 'none', opacity: 0.11,
-        }}
-        viewBox="0 0 1440 900"
-        preserveAspectRatio="xMidYMid slice"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <line x1="0"    y1="0"   x2="1440" y2="900" stroke="white" strokeWidth="0.7"/>
-        <line x1="1440" y1="0"   x2="0"    y2="900" stroke="white" strokeWidth="0.7"/>
-        <line x1="0"    y1="150" x2="1290" y2="900" stroke="white" strokeWidth="0.45"/>
-        <line x1="150"  y1="0"   x2="1440" y2="750" stroke="white" strokeWidth="0.45"/>
-        <line x1="1440" y1="150" x2="150"  y2="900" stroke="white" strokeWidth="0.45"/>
-        <line x1="1290" y1="0"   x2="0"    y2="750" stroke="white" strokeWidth="0.45"/>
-      </svg>
-
       {/* Main content */}
       <div className="hero-inner">
 
         {/* Badge */}
-        <div className="hero-badge">
+        <div className="hero-badge" aria-label="Code build get hired">
           <span className="dot" />
-          CODE.&nbsp; BUILD.&nbsp; GET HIRED.
+          <span>&gt; code.build().getHired()</span>
           <span className="dot" />
         </div>
 
         {/* Headline */}
         <h1 className="hero-h1">
-          Hi, I'm{' '}
+          Hi, I&apos;m{' '}
           <span className="name-highlight">Avinash Jha</span>
           <br />
-          The{' '}
+          A{' '}
           <span className="role-box-wrapper">
             <span className="role-box">
               <span className={`role-text${animating ? ' exit' : ''}`}>
                 {ROLES[currentRole]}
               </span>
             </span>
-          </span>
-          <br />
-          Companies Want To Hire!
+          </span>{' '}
+          building products that scale.
         </h1>
 
         {/* Sub-text */}
         <p className="hero-sub">
-          Building scalable web apps and intelligent systems — with a passion
-          for clean code, great UX, and real-world impact.
+          React, Node, and ML pipelines, from idea to production.
         </p>
 
         {/* Social proof */}
         <div className="hero-social-proof">
           <div className="avatar-stack" aria-hidden="true">
-            {/* Placeholder avatars with initials */}
             {[
               { bg: '#1a3a6e', initials: 'RK' },
               { bg: '#3a1a6e', initials: 'SP' },
@@ -353,7 +400,7 @@ export const Hero = () => {
             ))}
           </div>
           <p className="social-proof-text">
-            <strong>Open to Work</strong> · Available for full-time &amp; freelance roles
+            Available for full-time &amp; freelance roles
           </p>
         </div>
 
@@ -363,6 +410,7 @@ export const Hero = () => {
             className="btn-primary"
             onClick={() => scrollToSection('projects')}
             id="hero-view-work-btn"
+            aria-label="View My Work"
           >
             View My Work →
           </button>
@@ -372,6 +420,7 @@ export const Hero = () => {
             rel="noopener noreferrer"
             className="btn-secondary"
             id="hero-resume-btn"
+            aria-label="Download Resume"
           >
             Download Resume ↗
           </a>

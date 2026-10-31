@@ -350,19 +350,23 @@ export default function About() {
           position: absolute;
           top: 1.1rem;
           right: 1.1rem;
-          width: 26px;
-          height: 20px;
+          width: 28px;
+          height: 24px;
           background: rgba(255,255,255,0.06);
           border: 1px solid rgba(255,255,255,0.12);
           border-radius: 3px;
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(3, 1fr);
           gap: 2px;
           padding: 3px;
         }
         .id-chip-cell {
           background: rgba(255,255,255,0.1);
           border-radius: 1px;
+        }
+        .id-chip-cell:first-child {
+          background: transparent;
+          border: 0;
         }
 
         /* Card body */
@@ -390,6 +394,46 @@ export default function About() {
           font-family: 'Manrope', sans-serif;
           font-weight: 500;
           color: rgba(255,255,255,0.78);
+        }
+        .id-chip-group {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.45rem;
+          margin-top: 0.15rem;
+        }
+        .id-chip-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          border: 1px solid rgba(224,90,28,0.28);
+          background: rgba(224,90,28,0.08);
+          color: #f2b38d;
+          padding: 0.26rem 0.58rem;
+          font-size: 0.64rem;
+          font-family: 'Manrope', sans-serif;
+          font-weight: 600;
+          line-height: 1.1;
+          letter-spacing: 0.01em;
+          min-height: 24px;
+        }
+        .id-chip-badge.primary {
+          width: 100%;
+          justify-content: center;
+          padding: 0.38rem 0.75rem;
+          background: rgba(224,90,28,0.14);
+          border-color: rgba(224,90,28,0.34);
+          min-height: 28px;
+        }
+        .id-chip-row {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.38rem;
+          width: 100%;
+        }
+        .id-chip-row .id-chip-badge {
+          width: 100%;
         }
         .id-divider {
           height: 1px;
@@ -423,6 +467,36 @@ export default function About() {
           background: #4ade80;
           animation: statusPulse 2s ease-in-out infinite;
           box-shadow: 0 0 6px rgba(74,222,128,0.6);
+        }
+
+        .id-profile-links {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+        }
+        .id-profile-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 26px;
+          height: 26px;
+          border-radius: 8px;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.02);
+          color: #f0a56f;
+          transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+        .id-profile-link:hover,
+        .id-profile-link:focus-visible {
+          transform: translateY(-1px);
+          border-color: rgba(224,90,28,0.32);
+          background: rgba(224,90,28,0.06);
+          outline: none;
+        }
+        .id-profile-link svg {
+          width: 13px;
+          height: 13px;
+          fill: currentColor;
         }
 
         /* Barcode */
@@ -574,9 +648,27 @@ export default function About() {
                     <div className="id-chip-cell" />
                     <div className="id-chip-cell" />
                     <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
+                    <div className="id-chip-cell" />
                   </div>
 
-                  <div className="id-avatar">AJ</div>
+                  <div className="id-avatar">
+                    <img
+                      src="/PIC.jpeg"
+                      alt="Avinash Jha"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center top',
+                        display: 'block',
+                        borderRadius: '50%'
+                      }}
+                    />
+                  </div>
                   <div className="id-name">Avinash Jha</div>
                   <div className="id-role-badge">Associate Developer</div>
                 </div>
@@ -585,17 +677,22 @@ export default function About() {
                 <div className="id-card-body">
                   <div className="id-field">
                     <div className="id-field-label">Stack</div>
-                    <div className="id-field-value">MERN · Gen AI · DSA . System Design </div>
+                    <div className="id-chip-group">
+                      <span className="id-chip-badge primary">Full Stack Development</span>
+                      <div className="id-chip-row">
+                        <span className="id-chip-badge">Agentic AI</span>
+                        <span className="id-chip-badge">Gen AI</span>
+                        <span className="id-chip-badge">Workday Extend</span>
+                        <span className="id-chip-badge">Python</span>
+                        <span className="id-chip-badge">MERN</span>
+                        <span className="id-chip-badge">DSA</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="id-divider" />
                   <div className="id-field">
                     <div className="id-field-label">Location</div>
                     <div className="id-field-value">New Delhi, India</div>
-                  </div>
-                  <div className="id-divider" />
-                  <div className="id-field">
-                    <div className="id-field-label">Available For</div>
-                    <div className="id-field-value">Full-time · Freelance</div>
                   </div>
                 </div>
 
@@ -605,17 +702,41 @@ export default function About() {
                     <div className="id-status-dot" />
                     Open to Work
                   </div>
-                  <div className="id-barcode" aria-hidden="true">
-                    {BARCODE_HEIGHTS.map((h, i) => (
-                      <div
-                        key={i}
-                        className="id-bar"
-                        style={{
-                          width: h <= 3 ? '2px' : '3px',
-                          height: `${h * 3 + 4}px`,
-                        }}
-                      />
-                    ))}
+
+                  <div className="id-profile-links" aria-label="Profile links">
+                    <a
+                      className="id-profile-link"
+                      href="https://www.linkedin.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="LinkedIn profile"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6.94 8.5A1.56 1.56 0 1 1 6.94 5.4a1.56 1.56 0 0 1 0 3.1ZM5.5 9.83h2.9v9.67H5.5V9.83Zm5.2 0h2.78v1.32h.04c.39-.74 1.34-1.52 2.76-1.52 2.95 0 3.49 1.94 3.49 4.46v6.41h-2.9v-6c0-1.43-.03-3.28-2-3.28-2 0-2.31 1.56-2.31 3.17v6.11H10.7V9.83Z"/>
+                      </svg>
+                    </a>
+                    <a
+                      className="id-profile-link"
+                      href="https://github.com/Avinash2912"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="GitHub profile"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 .5A12 12 0 0 0 8.21 23.4c.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.6-4.04-1.6-.55-1.4-1.34-1.77-1.34-1.77-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.26 1.84 1.26 1.07 1.83 2.8 1.3 3.47.99.11-.78.42-1.3.77-1.6-2.66-.3-5.46-1.33-5.46-5.92 0-1.31.46-2.38 1.22-3.22-.12-.3-.53-1.54.12-3.2 0 0 1-.32 3.3 1.23a11.3 11.3 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.9.12 3.2.76.84 1.22 1.91 1.22 3.22 0 4.6-2.81 5.61-5.49 5.91.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z"/>
+                      </svg>
+                    </a>
+                    <a
+                      className="id-profile-link"
+                      href="https://leetcode.com/u/Avinash_1912/"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="LeetCode profile"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12.3 2.13a1.2 1.2 0 0 1 1.67 0l3.92 3.98a1.2 1.2 0 0 1-.04 1.72l-2.02 1.8a1.2 1.2 0 0 1-1.64.02l-1.43-1.2-1.44 1.3a1.2 1.2 0 0 1-1.66-.02L7.46 7.84a1.2 1.2 0 0 1-.05-1.72l3.88-3.99Zm-2.17 8.2 1.15 1.04-1.15 1.02a1.2 1.2 0 0 0 0 1.72l1.15 1.02-1.15 1.02a1.2 1.2 0 0 0 0 1.72l1.15 1.02-1.15 1.02a1.2 1.2 0 0 0 0 1.72l1.57 1.38a1.2 1.2 0 0 0 1.66 0l4.86-4.3a1.2 1.2 0 0 0 0-1.72l-4.89-4.33a1.2 1.2 0 0 0-1.64 0l-1.56 1.38a1.2 1.2 0 0 0 0 1.72Zm5.35 1.59 1.16 1.04-1.16 1.03-1.15-1.03 1.15-1.04Zm-1.15 4.11 1.15 1.03-1.15 1.04-1.16-1.04 1.16-1.03Z"/>
+                      </svg>
+                    </a>
                   </div>
                 </div>
 

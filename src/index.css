@@ -18,6 +18,25 @@ body {
   overflow-x: hidden;
 }
 
+a,
+button,
+[role="button"] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+a:hover,
+button:hover,
+[role="button"]:hover {
+  transform: translateY(-1px);
+}
+
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgba(255, 200, 160, 0.9);
+  outline-offset: 3px;
+}
+
 /* Responsive tweaks */
 @media (max-width: 640px) {
   h1 { font-size: 2rem !important; }
