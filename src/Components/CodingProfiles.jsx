@@ -146,18 +146,177 @@ const parseContest = (j) => {
 };
 
 /* ------------------------------ GfG data --------------------------- */
-const GFG_URLS = [
-  (u) => `https://gfg-stats.tashif.codes/${u}/profile`,
-  (u) => `https://geeks-for-geeks-api.vercel.app/${u}`,
+const GFG_BASE = 'https://gfg-stats.tashif.codes';
+const GFG_FALLBACK = (u) => `https://geeks-for-geeks-api.vercel.app/${u}`;
+
+// Numbers or purely numeric strings only ("224", "00"); "avinashjha832" -> null.
+const strictNum = (v) =>
+  typeof v === 'number'
+    ? Number.isFinite(v) ? v : null
+    : typeof v === 'string' && /^\s*-?\d+(\.\d+)?\s*$/.test(v)
+      ? parseFloat(v)
+      : null;
+
+const normKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Depth-first search for the first non-empty value whose key matches any of `names`.
+const findKey = (obj, names, depth = 0) => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj) || depth > 4) return undefined;
+  const want = names.map(normKey);
+  for (const k of Object.keys(obj)) {
+    if (want.includes(normKey(k)) && obj[k] != null && obj[k] !== '') return obj[k];
+  }
+  for (const k of Object.keys(obj)) {
+    const r = findKey(obj[k], names, depth + 1);
+    if (r !== undefined) return r;
+  }
+  return undefined;
+};
+
+const findNum = (obj, names) => strictNum(findKey(obj, names));
+
+// A count can be 49, "49", { count: 49 } or { questions: [...] }.
+const countOf = (v) =>
+  v && typeof v === 'object'
+    ? strictNum(v.count ?? v.solved ?? v.problemsSolved ?? (Array.isArray(v.questions) ? v.questions.length : null))
+    : strictNum(v);
+
+const GFG_DIFF_META = [
+  { key: 'school', label: 'School', color: '#a78bfa', names: ['school', 'schoolSolved', 'schoolProblemsSolved'] },
+  { key: 'basic', label: 'Basic', color: '#60a5fa', names: ['basic', 'basicSolved', 'basicProblemsSolved'] },
+  { key: 'easy', label: 'Easy', color: '#1CBABA', names: ['easy', 'easySolved', 'easyProblemsSolved'] },
+  { key: 'medium', label: 'Medium', color: '#FFB800', names: ['medium', 'mediumSolved', 'mediumProblemsSolved'] },
+  { key: 'hard', label: 'Hard', color: '#EF4743', names: ['hard', 'hardSolved', 'hardProblemsSolved'] },
 ];
 
-const parseGfg = (j) => {
+// Used for "/", "/profile", "/stats" and the fallback API. Returns null if nothing useful was found.
+const parseGfgSummary = (j) => {
   if (!j || typeof j !== 'object') return null;
-  const info = j.info ?? j;
-  const solved = toNum(info.totalProblemsSolved ?? info.solved);
-  if (solved === null) return null;
-  return { solved, score: toNum(info.codingScore), streak: toNum(info.currentStreak) };
+
+  const diffs = {};
+  for (const m of GFG_DIFF_META) {
+    const n = countOf(findKey(j, m.names));
+    if (n !== null) diffs[m.key] = n;
+  }
+
+  const diffSum = Object.values(diffs).reduce((a, b) => a + b, 0);
+  const instituteRaw = findKey(j, ['institution', 'institute', 'college', 'organization']);
+
+  const out = {
+    solved:
+      findNum(j, ['totalProblemsSolved', 'problemsSolved', 'totalSolved', 'solved']) ??
+      (Object.keys(diffs).length ? diffSum : null),
+    score: findNum(j, ['codingScore', 'overallCodingScore', 'score']),
+    monthlyScore: findNum(j, ['monthlyCodingScore', 'monthlyScore']),
+    streak: findNum(j, ['currentStreak', 'streak']),
+    maxStreak: findNum(j, ['maxStreak', 'longestStreak']),
+    instituteRank: findNum(j, ['instituteRank', 'collegeRank']),
+    institute: typeof instituteRaw === 'string' ? instituteRaw : null,
+    diffs,
+  };
+
+  const any =
+    out.solved !== null ||
+    out.score !== null ||
+    out.streak !== null ||
+    out.instituteRank !== null ||
+    Object.keys(diffs).length > 0;
+  return any ? out : null;
 };
+
+// First real value wins for every field; difficulty counts merge per key.
+const mergeGfg = (a, b) => {
+  if (!a) return b;
+  if (!b) return a;
+  const out = { ...a, diffs: { ...b.diffs, ...a.diffs } };
+  for (const k of Object.keys(b)) if (k !== 'diffs' && out[k] == null) out[k] = b[k];
+  return out;
+};
+
+const toIsoDate = (key) => {
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(key))) return String(key).slice(0, 10);
+  const n = strictNum(key);
+  if (n !== null) return new Date(n * (n < 1e12 ? 1000 : 1)).toISOString().slice(0, 10);
+  const d = new Date(key);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+};
+
+// Accepts [{date,count}] or { "YYYY-MM-DD": n } (or unix-second keys). Returns [{date,count}] or null.
+const parseGfgHeat = (j) => {
+  const v = findKey(j, ['heatmap', 'submissionCalendar', 'calendar', 'activity']) ?? j;
+  const acc = {};
+  const add = (key, n) => {
+    const date = toIsoDate(key);
+    if (date && n > 0) acc[date] = (acc[date] ?? 0) + n;
+  };
+
+  if (Array.isArray(v)) {
+    v.forEach((it) => {
+      if (it && typeof it === 'object') {
+        add(it.date ?? it.day ?? it.timestamp, strictNum(it.count ?? it.value ?? it.submissions ?? it.solved));
+      }
+    });
+  } else if (v && typeof v === 'object') {
+    Object.entries(v).forEach(([k, val]) => add(k, countOf(val)));
+  }
+
+  const days = Object.entries(acc)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return days.length ? days : null;
+};
+
+// Accepts [{topic,count}] or { "Arrays": 40, ... }. Returns [{name,n}] sorted desc, or null.
+// Language tags GfG mixes into topics; they aren't DSA topics, so they are hidden.
+const GFG_LANG_TAGS = new Set(['cpp', 'c', 'java', 'python', 'javascript', 'c#', 'csharp', 'php', 'go', 'kotlin', 'swift', 'scala', 'rust', 'ruby']);
+// "two-pointer-algorithm" -> "Two Pointer Algorithm", "implementation" -> "Implementation".
+const prettyTopic = (s) =>
+  /[-_]/.test(s) || s === s.toLowerCase()
+    ? s.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : s;
+
+const parseGfgTopics = (j) => {
+  let v =
+    findKey(j, ['topicAnalysis', 'topics', 'topicWise', 'topicWiseStats', 'topicStats']) ??
+    (Array.isArray(j?.data) ? j.data : j);
+  // Never treat a { data: [...] } wrapper as a topic called "data".
+  if (v && !Array.isArray(v) && Array.isArray(v.data)) v = v.data;
+  let list = [];
+  if (Array.isArray(v)) {
+    list = v.map((it) => ({
+      name: it?.topic ?? it?.name ?? it?.tag ?? it?.title,
+      n:
+        strictNum(it?.count ?? it?.solved ?? it?.problemsSolved ?? it?.total) ??
+        (Array.isArray(it?.questions) ? it.questions.length : null),
+    }));
+  } else if (v && typeof v === 'object') {
+    list = Object.entries(v).map(([name, val]) => ({ name, n: Array.isArray(val) ? val.length : countOf(val) }));
+  }
+  list = list
+    .filter((t) => typeof t.name === 'string' && t.n > 0 && !GFG_LANG_TAGS.has(t.name.toLowerCase()))
+    .map((t) => ({ ...t, name: prettyTopic(t.name) }))
+    .sort((a, b) => b.n - a.n);
+  return list.length ? list : null;
+};
+
+// Every request runs in parallel; each one fills in whatever it can.
+const GFG_JOBS = [
+  { url: (u) => `${GFG_BASE}/${u}`, apply: (j, p) => ({ ...p, summary: mergeGfg(p.summary, parseGfgSummary(j)) }) },
+  { url: (u) => `${GFG_BASE}/${u}/profile`, apply: (j, p) => ({ ...p, summary: mergeGfg(p.summary, parseGfgSummary(j)) }) },
+  {
+    url: (u) => `${GFG_BASE}/${u}/stats`,
+    apply: (j, p) => ({ ...p, summary: mergeGfg(p.summary, parseGfgSummary(j)), topics: p.topicsFromEndpoint ? p.topics : parseGfgTopics(j) ?? p.topics }),
+  },
+  { url: GFG_FALLBACK, apply: (j, p) => ({ ...p, summary: mergeGfg(p.summary, parseGfgSummary(j)) }) },
+  { url: (u) => `${GFG_BASE}/${u}/heatmap`, apply: (j, p) => ({ ...p, heat: p.heat ?? parseGfgHeat(j) }) },
+  {
+    url: (u) => `${GFG_BASE}/${u}/topics`,
+    apply: (j, p) => {
+      const parsed = parseGfgTopics(j);
+      return parsed ? { ...p, topics: parsed, topicsFromEndpoint: true } : p;
+    },
+  },
+];
 
 // Combine two partial "extras" objects: keep the first real value for every field.
 const mergeExtras = (a, b) => {
@@ -909,6 +1068,253 @@ const GitHubHeatmap = ({ username, url, onStatus }) => {
   );
 };
 
+/* ------------------------------ GfG widget ------------------------- */
+const GfgHeatmap = ({ days }) => {
+  const [selected, setSelected] = useState('current');
+  const years = useMemo(
+    () => [...new Set(days.map((d) => d.date.slice(0, 4)))].sort((a, b) => b - a),
+    [days]
+  );
+
+  const { weeks, stats, labels } = useMemo(() => {
+    const now = new Date();
+    const year = selected === 'current' ? now.getFullYear() : Number(selected);
+    const byDate = new Map(days.map((d) => [d.date, d.count]));
+    const start = Date.UTC(year, 0, 1);
+    const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = Math.min(Date.UTC(year, 11, 31), todayUtc);
+
+    // The API usually lists only active days, so fill every day up to today.
+    const filled = [];
+    for (let t = start; t <= end; t += 86400000) {
+      const date = new Date(t).toISOString().slice(0, 10);
+      filled.push({ date, count: byDate.get(date) ?? 0 });
+    }
+    const max = Math.max(1, ...filled.map((d) => d.count));
+    const leveled = filled.map((d) => {
+      const r = d.count / max;
+      return { ...d, level: d.count === 0 ? 0 : r <= 0.25 ? 1 : r <= 0.5 ? 2 : r <= 0.75 ? 3 : 4 };
+    });
+
+    const w = buildWeeks(leveled);
+    return { weeks: w, stats: getStats(leveled), labels: getMonthLabels(w) };
+  }, [days, selected]);
+
+  const periodText = selected === 'current' ? `in ${new Date().getFullYear()}` : `in ${selected}`;
+
+  return (
+    <div className="ghm">
+      <div className="ghm-top">
+        <div className="ghm-title">
+          <b>{stats.total.toLocaleString()}</b>
+          submissions {periodText}
+        </div>
+        <div className="ghm-meta">
+          <span>Total active days: <b>{stats.active}</b></span>
+          <span>Max streak: <b>{stats.max}</b></span>
+          <select
+            className="ghm-select"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            aria-label="Select year"
+          >
+            <option value="current">Current</option>
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="ghm-scroll">
+        <div className="ghm-inner">
+          <div
+            className="ghm-grid"
+            role="img"
+            aria-label={`GeeksforGeeks activity: ${stats.total} submissions ${periodText}, ${stats.active} active days`}
+            style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}
+          >
+            {weeks.flatMap((week, w) =>
+              week.map((day, d) => (
+                <span
+                  key={`${w}-${d}`}
+                  className={`ghm-cell ${day ? 'on' : ''}`}
+                  title={day ? `${day.count} submission${day.count === 1 ? '' : 's'} on ${day.date}` : undefined}
+                  style={{ background: day ? HEAT[day.level] : 'transparent' }}
+                />
+              ))
+            )}
+          </div>
+          <div className="ghm-months" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}>
+            {labels.map((l) => (
+              <span key={`${l.text}-${l.col}`} style={{ gridColumn: l.col }}>{l.text}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ghm-legend" aria-hidden="true">
+        Less {HEAT.map((c) => <i key={c} style={{ background: c }} />)} More
+      </div>
+    </div>
+  );
+};
+
+// Donut: each difficulty gets an arc proportional to how many problems were solved in it.
+const GfgDifficulty = ({ solved, tiles, diffs, institute }) => {
+  const [focused, setFocused] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const total = tiles.reduce((s, m) => s + diffs[m.key], 0);
+  const segs = tiles.filter((m) => diffs[m.key] > 0);
+  const gapDeg = segs.length > 1 ? 10 : 0;
+  const usable = 360 - gapDeg * segs.length;
+
+  let cursor = 0;
+  const arcs = segs.map((m) => {
+    const sweep = Math.min(359.9, (diffs[m.key] / total) * usable);
+    const a0 = cursor;
+    cursor += sweep + gapDeg;
+    return { ...m, path: describeArc(100, 100, 80, a0, a0 + sweep) };
+  });
+
+  const active = tiles.find((m) => m.key === focused);
+  const centerN = active ? diffs[active.key] : solved;
+  const centerColor = active ? active.color : '#fff';
+
+  return (
+    <div>
+      <div className="gf-topics-head">
+        <span>Solved by difficulty{institute ? ` · ${institute}` : ''}</span>
+      </div>
+      <div className="gf-diff">
+        <div className="lc-ring">
+          <svg viewBox="0 0 200 200" width="190" height="190" aria-hidden="true">
+            {arcs.map((a) => (
+              <g key={a.key} style={{ opacity: focused && focused !== a.key ? 0.35 : 1, transition: 'opacity 180ms' }}>
+                <path
+                  className="gf-arc"
+                  d={a.path}
+                  pathLength="1"
+                  fill="none"
+                  stroke={a.color}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${mounted ? 1 : 0} 1`}
+                />
+              </g>
+            ))}
+          </svg>
+          <div className="lc-center">
+            <div className="lc-num">
+              <span style={{ color: centerColor }}>{centerN}</span>
+            </div>
+            <div className="lc-solved">
+              <span aria-hidden="true">✓</span> Solved
+            </div>
+          </div>
+        </div>
+
+        <div className="gf-diff-tiles">
+          {tiles.map((m) => (
+            <div
+              key={m.key}
+              className="gf-tile"
+              tabIndex={0}
+              onMouseEnter={() => setFocused(m.key)}
+              onMouseLeave={() => setFocused(null)}
+              onFocus={() => setFocused(m.key)}
+              onBlur={() => setFocused(null)}
+              style={{ borderColor: focused === m.key ? m.color : undefined }}
+            >
+              <div className="gf-tile-label" style={{ color: m.color }}>{m.label}</div>
+              <div className="gf-tile-value">
+                {diffs[m.key]}
+                {total > 0 && <span className="gf-tile-pct">{Math.round((diffs[m.key] / total) * 100)}%</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GfgStats = ({ summary, heat, topics }) => {
+  const { solved, diffs } = summary;
+
+  const tiles = GFG_DIFF_META.filter((m) => diffs[m.key] != null);
+
+  const stats = [];
+  if (summary.score != null) stats.push({ label: 'Coding score', value: fmtInt(summary.score) });
+  if (summary.monthlyScore != null) stats.push({ label: 'Monthly score', value: fmtInt(summary.monthlyScore) });
+  if (summary.streak != null) stats.push({ label: 'Current streak', value: summary.streak });
+  if (summary.maxStreak != null) stats.push({ label: 'Max streak', value: summary.maxStreak });
+  if (summary.instituteRank != null) stats.push({ label: 'Institute rank', value: fmtInt(summary.instituteRank) });
+
+  const shown = topics ?? [];
+  const maxTopic = topics?.[0]?.n ?? 1;
+
+  return (
+    <div className="gf">
+      <div className="gf-top">
+        <div className="gf-card">
+          {tiles.length > 0 ? (
+            <GfgDifficulty solved={solved} tiles={tiles} diffs={diffs} institute={summary.institute} />
+          ) : (
+            <>
+              <div className="gf-solved-num">{solved}</div>
+              <div className="gf-solved-label">
+                problems solved{summary.institute ? ` · ${summary.institute}` : ''}
+              </div>
+            </>
+          )}
+        </div>
+
+        {topics && (
+          <div className="gf-card">
+            <div className="gf-topics-head">
+              <span>Topic-wise solved</span>
+              <span>{topics.length} topics</span>
+            </div>
+            <div className="gf-topics-list">
+              {shown.map((t) => (
+                <div key={t.name} className="gf-trow">
+                  <span className="gf-tname" title={t.name}>{t.name}</span>
+                  <span className="gf-tbar"><i style={{ width: `${(t.n / maxTopic) * 100}%` }} /></span>
+                  <span className="gf-tcount">{t.n}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {stats.length > 0 && (
+        <div className="lc-extras">
+          {stats.map((s) => (
+            <div key={s.label} className="lc-stat">
+              <div className="lc-stat-value">{s.value}</div>
+              <div className="lc-stat-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {heat && (
+        <div className="gf-card">
+          <GfgHeatmap days={heat} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ------------------------------ Main component --------------------- */
 const CodingProfiles = () => {
   const { github, leetcode, gfg } = PROFILE_DATA;
@@ -989,28 +1395,36 @@ const CodingProfiles = () => {
     };
   }, [contestData, lcParts.extras]);
 
-  /* GeeksforGeeks: first API to return usable data wins */
-  const [gfgData, setGfgData] = useState({ status: 'loading' });
+  /* GeeksforGeeks: merge whatever each endpoint returns as it arrives */
+  const [gfgParts, setGfgParts] = useState({ summary: null, heat: null, topics: null });
+  const [gfgDone, setGfgDone] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
+    let pending = GFG_JOBS.length;
 
-    Promise.any(
-      GFG_URLS.map(async (buildUrl) => {
-        const parsed = parseGfg(await fetchJson(buildUrl(gfg.username), ctrl.signal));
-        if (!parsed) throw new Error('unusable response');
-        return parsed;
-      })
-    )
-      .then((parsed) => {
-        if (!ctrl.signal.aborted) setGfgData({ status: 'ready', ...parsed });
-      })
-      .catch(() => {
-        if (!ctrl.signal.aborted) setGfgData({ status: 'error' });
-      });
+    GFG_JOBS.forEach(async (job) => {
+      try {
+        const json = await fetchJson(job.url(gfg.username), ctrl.signal);
+        setGfgParts((prev) => job.apply(json, prev));
+      } catch (err) {
+        /* a failing endpoint is fine; the others may still answer */
+      } finally {
+        pending -= 1;
+        if (pending === 0 && !ctrl.signal.aborted) setGfgDone(true);
+      }
+    });
 
     return () => ctrl.abort();
   }, [gfg.username]);
+
+  const gfgView = useMemo(() => {
+    const s = gfgParts.summary;
+    if (!s || s.solved == null) return null;
+    return s;
+  }, [gfgParts.summary]);
+
+  const gfgStatus = gfgView ? 'ready' : gfgDone ? 'error' : 'loading';
 
   const ghUrl = github.url;
   const lcUrl = `https://leetcode.com/u/${leetcode.username}/`;
@@ -1110,6 +1524,34 @@ const CodingProfiles = () => {
 
         .cp-chip { display: inline-block; border-radius: 999px; border: 1px solid rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); color: #6ee7b7; padding: 0.3rem 0.7rem; font-size: 0.75rem; font-weight: 600; }
 
+        /* GeeksforGeeks widget */
+        .gf { display: flex; flex-direction: column; gap: 18px; color: #fff; font-variant-numeric: tabular-nums; }
+        .gf-top { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); gap: 18px; align-items: stretch; }
+        .gf-card { border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: #262626; padding: 16px 18px; min-width: 0; }
+        .gf-solved-num { font-size: 2.6rem; line-height: 1; letter-spacing: -0.04em; font-family: 'Neue Machina', 'Manrope', sans-serif; }
+        .gf-solved-label { margin-top: 6px; font-size: 0.78rem; color: #a8a8a8; }
+        .gf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; margin-top: 16px; }
+        .gf-tile { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 14px; }
+        .gf-tile-label { font-weight: 600; font-size: 13px; }
+        .gf-tile-value { font-weight: 700; font-size: 15px; margin-top: 4px; }
+        .gf-topics-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: #a8a8a8; margin-bottom: 6px; }
+        .gf-toggle { background: none; border: 0; padding: 0; color: #e05a1c; font: inherit; font-weight: 600; cursor: pointer; }
+        .gf-toggle:focus-visible { outline: 2px solid #e05a1c; outline-offset: 2px; border-radius: 4px; }
+        .gf-topics-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 32px; }
+        .gf-trow { display: grid; grid-template-columns: minmax(90px, 150px) 1fr 34px; gap: 10px; align-items: center; margin-top: 8px; font-size: 0.78rem; }
+        .gf-tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d0d0d0; }
+        .gf-tbar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .gf-tbar i { display: block; height: 100%; border-radius: 999px; background: #34d399; }
+        .gf-tcount { text-align: right; font-weight: 700; }
+        .gf-diff { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 18px 24px; }
+        .gf-diff-tiles { display: flex; flex-direction: column; gap: 8px; flex: 1 1 140px; min-width: 140px; max-width: 240px; }
+        .gf-tile { transition: border-color 180ms, transform 180ms ease; }
+        .gf-tile:hover { transform: translateY(-1px); }
+        .gf-tile:focus-visible { outline: 2px solid #e05a1c; outline-offset: 2px; }
+        .gf-tile-pct { margin-left: 6px; font-size: 12px; font-weight: 500; color: #7a7a7a; }
+        .gf-arc { transition: stroke-dasharray 800ms ease-out; }
+        @media (prefers-reduced-motion: reduce) { .gf-arc { transition: none; } }
+
         @media (max-width: 1100px) {
           .lc { grid-template-columns: 190px minmax(0, 1fr); }
           .ct { grid-column: 1 / -1; }
@@ -1117,6 +1559,7 @@ const CodingProfiles = () => {
         @media (max-width: 820px) {
           .cp-grid { grid-template-columns: 1fr; }
           .cp-panel.wide { grid-column: span 1; }
+          .gf-top { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) {
           .cp-panel { transition: none; }
@@ -1185,28 +1628,14 @@ const CodingProfiles = () => {
                     <span className="cp-handle">@{gfg.username}</span>
                   </span>
                 </a>
-                <Status state={gfgData.status} />
+                <Status state={gfgStatus} />
               </div>
 
-              {gfgData.status === 'ready' && (
-                <>
-                  <div className="cp-metric">
-                    <div>
-                      <div className="cp-big">{gfgData.solved}</div>
-                      <div className="cp-label">problems solved</div>
-                    </div>
-                    {gfgData.score !== null && (
-                      <div>
-                        <div className="cp-big">{gfgData.score}</div>
-                        <div className="cp-label">coding score</div>
-                      </div>
-                    )}
-                  </div>
-                  {gfgData.streak > 0 && <span className="cp-chip">{gfgData.streak}-day streak</span>}
-                </>
+              {gfgStatus === 'ready' && (
+                <GfgStats summary={gfgView} heat={gfgParts.heat} topics={gfgParts.topics} />
               )}
-              {gfgData.status === 'loading' && <div className="cp-empty">Loading GeeksforGeeks stats…</div>}
-              {gfgData.status === 'error' && (
+              {gfgStatus === 'loading' && <div className="cp-empty">Loading GeeksforGeeks stats…</div>}
+              {gfgStatus === 'error' && (
                 <div className="cp-empty">
                   Stats are unavailable right now.{' '}
                   <a href={gfgUrl} target="_blank" rel="noopener noreferrer">View them on GeeksforGeeks</a>.
