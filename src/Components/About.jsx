@@ -601,18 +601,19 @@ export default function About() {
           {/* Left — Bio */}
           <div className={`about-left${inView ? ' in' : ''}`}>
             <p className="about-bio">
-              I’m <strong>Avinash Jha</strong>, an <strong>Associate Developer</strong> based in <strong>New Delhi</strong>, passionate about
-              building <strong>scalable full-stack applications</strong> and crafting <strong>modern, user-friendly web experiences</strong>.
-              I work primarily with the <strong>MERN stack</strong> and enjoy turning complex ideas into clean, reliable
-              products with smooth UI interactions and responsive design.
+              I’m <strong>Avinash Jha</strong>, a <strong>software developer</strong> focused on building scalable web applications and
+              practical digital products that solve real problems. My work spans <strong>full-stack development</strong>,
+              <strong>AI-powered solutions</strong>, and <strong>enterprise application engineering</strong>, with an emphasis on building
+              reliable systems that are both technically strong and user-friendly.
               <br /><br />
-              I’ve worked on enterprise-grade <strong>Workday Extend</strong> applications, <strong>AI automation solutions</strong>, and
-              <strong>real-time platforms</strong>, while also exploring practical <strong>Generative AI</strong> integrations using tools
-              like the <strong>Gemini API</strong>. Alongside application development, I’m deeply interested in <strong>system design</strong>,
-              <strong>backend architecture</strong>, and building maintainable systems that scale efficiently.
+              I have hands-on experience with the <strong>MERN stack</strong>, <strong>Python</strong>, <strong>Workday Extend</strong>, and
+              modern web technologies, helping build efficient interfaces, robust backend systems, and business-impactful features. I enjoy
+              working across the full product lifecycle—from understanding requirements and designing solutions to shipping and improving
+              production-ready software.
               <br /><br />
-              I continuously strengthen my problem-solving skills through <strong>Data Structures &amp; Algorithms</strong> and
-              love learning new technologies that help create impactful digital experiences.
+              I continuously strengthen my fundamentals in <strong>Data Structures &amp; Algorithms</strong>, <strong>system design</strong>,
+              and backend architecture so I can contribute effectively to fast-moving engineering teams and build software that scales with
+              real-world demand.
             </p>
           </div>
 

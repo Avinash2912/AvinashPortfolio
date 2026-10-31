@@ -362,14 +362,14 @@ export const Hero = () => {
           Hi, I&apos;m{' '}
           <span className="name-highlight">Avinash Jha</span>
           <br />
-          A{' '}
           <span className="role-box-wrapper">
             <span className="role-box">
               <span className={`role-text${animating ? ' exit' : ''}`}>
                 {ROLES[currentRole]}
               </span>
             </span>
-          </span>{' '}
+          </span>
+          <br />
           building products that scale.
         </h1>
 
