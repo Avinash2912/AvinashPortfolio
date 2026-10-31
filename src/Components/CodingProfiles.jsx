@@ -109,6 +109,188 @@ const parseLeetCode = (j) => {
 };
 
 // Contest ranking + rating history (LeetCode's userContestRankingInfo, via alfa-leetcode-api).
+const LC_SKILL_URL = (u) => `https://alfa-leetcode-api.onrender.com/${u}/skill`;
+const LC_LANGUAGE_URL = (u) => `https://alfa-leetcode-api.onrender.com/${u}/language`;
+
+const parseLeetCodeLanguages = (json) => {
+  const rows = Array.isArray(json?.languageProblemCount) ? json.languageProblemCount : [];
+  return rows
+    .filter((row) => row && typeof row.languageName === 'string' && Number.isFinite(Number(row.problemsSolved)))
+    .map((row) => ({ languageName: row.languageName, problemsSolved: Number(row.problemsSolved) }))
+    .sort((a, b) => b.problemsSolved - a.problemsSolved);
+};
+
+const LeetCodeLanguages = ({ languages }) => {
+  if (!languages.length) return null;
+  const total = languages.reduce((sum, item) => sum + item.problemsSolved, 0);
+  const palette = ['#f59e0b', '#38bdf8', '#34d399', '#a78bfa', '#fb7185', '#facc15', '#2dd4bf', '#c084fc'];
+  let offset = 0;
+  const segments = languages.map((item, index) => {
+    const start = offset;
+    offset += total > 0 ? (item.problemsSolved / total) * 100 : 0;
+    return { ...item, color: palette[index % palette.length], start, end: offset, percent: total ? (item.problemsSolved / total) * 100 : 0 };
+  });
+  const pieBackground = total
+    ? `conic-gradient(${segments.map((item) => `${item.color} ${item.start}% ${item.end}%`).join(', ')})`
+    : 'conic-gradient(#555 0% 100%)';
+  return (
+    <section className="lc-languages" aria-label="LeetCode language-wise solved">
+      <div className="lc-languages-header">
+        <span>Language-wise Solved</span>
+        <span>{languages.length} languages</span>
+      </div>
+      <div className="lc-language-summary">
+        <strong>{total.toLocaleString()}</strong>
+        <span>problems solved across languages</span>
+      </div>
+      <div className="lc-language-chart-layout">
+        <div className="lc-language-pie" role="img" aria-label={`Language distribution: ${segments.map((item) => `${item.languageName} ${item.percent.toFixed(1)} percent`).join(', ')}`} style={{ background: pieBackground }}>
+          <div className="lc-language-pie-center"><strong>{total.toLocaleString()}</strong><span>Total</span></div>
+        </div>
+        <div className="lc-language-legend">
+          {segments.map((item) => (
+            <div className="lc-language-legend-row" key={item.languageName}>
+              <span className="lc-language-dot" style={{ background: item.color }} />
+              <span className="lc-language-name">{item.languageName}</span>
+              <strong className="lc-language-count">{item.problemsSolved.toLocaleString()}</strong>
+              <span className="lc-language-percent">{item.percent.toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// The skill endpoint returns category keys (for example fundamental,
+// intermediate and advanced), each containing topic records.
+const parseLeetCodeTopics = (json) => {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return [];
+
+  return Object.entries(json)
+    .filter(([, topics]) => Array.isArray(topics))
+    .map(([category, topics]) => ({
+      category,
+      topics: topics.filter(
+        (topic) =>
+          topic &&
+          typeof topic.tagName === 'string' &&
+          typeof topic.tagSlug === 'string' &&
+          Number.isFinite(Number(topic.problemsSolved))
+      ),
+    }))
+    .filter((group) => group.topics.length > 0);
+};
+
+const LeetCodeTopics = ({ groups }) => {
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const allTopics = groups.flatMap((group) => group.topics);
+  const maxSolved = Math.max(
+    1,
+    ...allTopics.map((topic) => Number(topic.problemsSolved) || 0)
+  );
+
+  useEffect(() => {
+    if (!selectedCategory) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setSelectedCategory(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedCategory]);
+
+  if (!allTopics.length) return null;
+
+  const renderTopicRows = (topics) => (
+    <div className="lc-topic-list">
+      {topics.map((topic) => {
+        const solved = Number(topic.problemsSolved) || 0;
+        return (
+          <div className="lc-topic-row" key={topic.tagSlug}>
+            <span className="lc-topic-name" title={topic.tagName}>
+              {topic.tagName}
+            </span>
+            <div
+              className="lc-topic-progress"
+              role="progressbar"
+              aria-label={`${topic.tagName} solved`}
+              aria-valuemin={0}
+              aria-valuemax={maxSolved}
+              aria-valuenow={solved}
+            >
+              <div
+                className="lc-topic-progress-fill"
+                style={{ width: `${(solved / maxSolved) * 100}%` }}
+              />
+            </div>
+            <span className="lc-topic-count">{solved}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="lc-topics">
+      <div className="lc-topics-header">
+        <span>Topic-wise Solved</span>
+        <span>{allTopics.length} topics</span>
+      </div>
+
+      <div className="lc-category-cards">
+        {groups.map((group) => (
+          <button
+            type="button"
+            className="lc-category-card"
+            key={group.category}
+            onClick={() => setSelectedCategory(group)}
+            aria-label={`View ${group.category} topics`}
+          >
+            <span className="lc-category-card-name">
+              {group.category.replace(/[-_]/g, ' ')}
+            </span>
+            <span className="lc-category-card-count">{group.topics.length} topics</span>
+            <span className="lc-category-card-action">View topics <span aria-hidden="true">↗</span></span>
+          </button>
+        ))}
+      </div>
+
+      {selectedCategory && (
+        <div
+          className="lc-topic-modal-backdrop"
+          onClick={() => setSelectedCategory(null)}
+        >
+          <section
+            className="lc-topic-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lc-topic-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="lc-topic-modal-header">
+              <div>
+                <h3 id="lc-topic-modal-title">
+                  {selectedCategory.category.replace(/[-_]/g, ' ')}
+                </h3>
+                <span>{selectedCategory.topics.length} topics</span>
+              </div>
+              <button
+                type="button"
+                className="lc-topic-modal-close"
+                onClick={() => setSelectedCategory(null)}
+                aria-label="Close topics modal"
+              >
+                ×
+              </button>
+            </div>
+            {renderTopicRows(selectedCategory.topics)}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const LC_CONTEST_URL = (u) => `https://alfa-leetcode-api.onrender.com/userContestRankingInfo/${u}`;
 
 const parseContest = (j) => {
@@ -1322,6 +1504,51 @@ const CodingProfiles = () => {
   /* GitHub status (the heatmap fetches its own data) */
   const [ghStatus, setGhStatus] = useState('loading');
 
+  /* LeetCode topic-wise skill statistics */
+  const [lcTopicGroups, setLcTopicGroups] = useState([]);
+  const [lcTopicsStatus, setLcTopicsStatus] = useState('loading');
+  const [lcLanguages, setLcLanguages] = useState([]);
+  const [lcLanguagesStatus, setLcLanguagesStatus] = useState('loading');
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+
+    const fetchTopics = async () => {
+      try {
+        const json = await fetchJson(LC_SKILL_URL(leetcode.username), ctrl.signal);
+        const groups = parseLeetCodeTopics(json);
+
+        if (!ctrl.signal.aborted) {
+          setLcTopicGroups(groups);
+          setLcTopicsStatus(groups.length ? 'ready' : 'empty');
+        }
+      } catch (err) {
+        if (!ctrl.signal.aborted) setLcTopicsStatus('error');
+      }
+    };
+
+    fetchTopics();
+    return () => ctrl.abort();
+  }, [leetcode.username]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const fetchLanguages = async () => {
+      try {
+        const json = await fetchJson(LC_LANGUAGE_URL(leetcode.username), ctrl.signal);
+        const languages = parseLeetCodeLanguages(json);
+        if (!ctrl.signal.aborted) {
+          setLcLanguages(languages);
+          setLcLanguagesStatus(languages.length ? 'ready' : 'empty');
+        }
+      } catch (err) {
+        if (!ctrl.signal.aborted) setLcLanguagesStatus('error');
+      }
+    };
+    fetchLanguages();
+    return () => ctrl.abort();
+  }, [leetcode.username]);
+
   /* LeetCode: merge whatever each API returns as it arrives */
   const [lcParts, setLcParts] = useState({ counts: null, totals: null, extras: null });
   const [lcDone, setLcDone] = useState(false);
@@ -1522,6 +1749,53 @@ const CodingProfiles = () => {
         .lc-stat-label { margin-top: 3px; font-size: 0.72rem; color: #a8a8a8; }
         .lc-stat-sub { margin-top: 2px; font-size: 0.68rem; color: #8a8a8a; }
 
+        /* LeetCode topic-wise solved statistics */
+        .lc-topics { grid-column: 1 / -1; margin-top: 24px; padding: 18px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: #262626; min-width: 0; }
+        .lc-topics-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; color: #fff; font-size: 0.9rem; font-weight: 700; }
+        .lc-topics-header span:last-child { color: #ff8a4c; background: rgba(224,90,28,0.14); border: 1px solid rgba(224,90,28,0.38); border-radius: 999px; padding: 5px 11px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .lc-category-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .lc-category-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; padding: 15px 16px; text-align: left; color: #fff; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.09); border-radius: 11px; cursor: pointer; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
+        .lc-category-card:hover { border-color: rgba(224,90,28,0.55); background: rgba(224,90,28,0.07); transform: translateY(-1px); }
+        .lc-category-card:focus-visible, .lc-topic-modal-close:focus-visible { outline: 2px solid #e05a1c; outline-offset: 3px; }
+        .lc-category-card-name { color: #ff7840; font-size: 0.9rem; font-weight: 700; text-transform: capitalize; }
+        .lc-category-card-count { color: #72c7ff; background: rgba(48,145,210,0.14); border: 1px solid rgba(72,170,230,0.32); border-radius: 999px; padding: 3px 9px; font-size: 0.68rem; font-weight: 700; }
+        .lc-category-card-action { margin-top: 3px; color: #aaa; font-size: 0.72rem; }
+        .lc-topic-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); column-gap: 28px; row-gap: 13px; }
+        .lc-topic-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,0.72); backdrop-filter: blur(5px); }
+        .lc-topic-modal { width: min(900px, 100%); max-height: min(78vh, 760px); overflow: auto; padding: 22px; color: #fff; background: #222; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,0.55); }
+        .lc-topic-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+        .lc-topic-modal-header h3 { margin: 0 0 7px; color: #ff7840; font-size: 1.15rem; font-weight: 750; text-transform: capitalize; }
+        .lc-topic-modal-header span { color: #72c7ff; font-size: 0.75rem; }
+        .lc-topic-modal-close { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; color: #ddd; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; font-size: 1.4rem; line-height: 1; cursor: pointer; }
+        .lc-topic-modal-close:hover { color: #fff; background: rgba(224,90,28,0.2); border-color: rgba(224,90,28,0.45); }
+        .lc-topic-row { display: grid; grid-template-columns: minmax(100px, 150px) minmax(50px, 1fr) 34px; align-items: center; gap: 10px; min-width: 0; }
+        .lc-topic-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c4c4c4; font-size: 0.76rem; }
+        .lc-topic-progress { height: 6px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,0.08); }
+        .lc-topic-progress-fill { height: 100%; border-radius: inherit; background: #e05a1c; transition: width 500ms ease; }
+        .lc-topic-count { color: #fff; text-align: right; font-size: 0.76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        @media (max-width: 520px) { .lc-topics { padding: 14px; } .lc-topic-row { grid-template-columns: minmax(85px, 115px) minmax(35px, 1fr) 28px; gap: 7px; } .lc-topic-modal { padding: 16px; } .lc-category-cards { grid-template-columns: 1fr; } }
+        @media (prefers-reduced-motion: reduce) { .lc-topic-progress-fill { transition: none; } }
+
+        /* LeetCode language-wise solved statistics */
+        .lc-languages { grid-column: 1 / -1; margin-top: 16px; padding: 18px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: #262626; min-width: 0; }
+        .lc-languages-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; color: #fff; font-size: 0.9rem; font-weight: 700; }
+        .lc-languages-header span:last-child { color: #72c7ff; background: rgba(48,145,210,0.14); border: 1px solid rgba(72,170,230,0.32); border-radius: 999px; padding: 5px 10px; font-size: 0.72rem; }
+        .lc-language-summary { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+        .lc-language-summary strong { color: #fff; font-size: 1.25rem; }
+        .lc-language-summary span { color: #999; font-size: 0.72rem; }
+        .lc-language-chart-layout { display: flex; align-items: center; justify-content: center; gap: clamp(24px, 6vw, 64px); padding: 8px 0 4px; }
+        .lc-language-pie { width: 190px; height: 190px; flex: 0 0 190px; border-radius: 50%; display: grid; place-items: center; position: relative; }
+        .lc-language-pie-center { width: 112px; height: 112px; border-radius: 50%; background: #262626; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .lc-language-pie-center strong { color: #fff; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+        .lc-language-pie-center span { color: #999; font-size: 0.7rem; }
+        .lc-language-legend { display: grid; gap: 13px; min-width: min(100%, 260px); }
+        .lc-language-legend-row { display: grid; grid-template-columns: 9px minmax(80px, 1fr) auto auto; align-items: center; gap: 9px; }
+        .lc-language-dot { width: 9px; height: 9px; border-radius: 50%; }
+        .lc-language-name { color: #c4c4c4; font-size: 0.8rem; }
+        .lc-language-count { color: #fff; text-align: right; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+        .lc-language-percent { min-width: 48px; color: #8e8e8e; text-align: right; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+        @media (max-width: 520px) { .lc-languages { padding: 14px; } .lc-language-chart-layout { flex-direction: column; gap: 22px; } .lc-language-pie { width: 170px; height: 170px; flex-basis: 170px; } .lc-language-pie-center { width: 100px; height: 100px; } .lc-language-legend { width: 100%; } }
+
         .cp-chip { display: inline-block; border-radius: 999px; border: 1px solid rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); color: #6ee7b7; padding: 0.3rem 0.7rem; font-size: 0.75rem; font-weight: 600; }
 
         /* GeeksforGeeks widget */
@@ -1610,6 +1884,29 @@ const CodingProfiles = () => {
 
               {lcStatus === 'ready' && <LeetCodeStats {...lcView} contest={contest} />}
               {lcStatus === 'loading' && <div className="cp-empty">Loading LeetCode stats…</div>}
+
+              {lcTopicsStatus === 'loading' && (
+                <div className="cp-empty">Loading topic-wise statistics…</div>
+              )}
+              {lcTopicsStatus === 'ready' && (
+                <LeetCodeTopics groups={lcTopicGroups} />
+              )}
+              {lcTopicsStatus === 'empty' && (
+                <div className="cp-empty">No topic-wise statistics were returned by the API.</div>
+              )}
+              {lcTopicsStatus === 'error' && (
+                <div className="cp-empty">Topic-wise statistics are unavailable right now.</div>
+              )}
+              {lcLanguagesStatus === 'loading' && (
+                <div className="cp-empty">Loading language-wise statistics…</div>
+              )}
+              {lcLanguagesStatus === 'ready' && <LeetCodeLanguages languages={lcLanguages} />}
+              {lcLanguagesStatus === 'empty' && (
+                <div className="cp-empty">No language-wise statistics were returned by the API.</div>
+              )}
+              {lcLanguagesStatus === 'error' && (
+                <div className="cp-empty">Language-wise statistics are unavailable right now.</div>
+              )}
               {lcStatus === 'error' && (
                 <div className="cp-empty">
                   Stats are unavailable right now.{' '}
