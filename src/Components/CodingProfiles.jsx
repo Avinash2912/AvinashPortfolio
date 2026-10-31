@@ -373,16 +373,16 @@ const ContestPanel = ({ contest }) => {
         .ct { flex: 999 1 480px; min-width: 0; align-self: stretch; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(210px, 1fr); margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: #262626; color: #fff; font-variant-numeric: tabular-nums; }
         .ct-left, .ct-right { padding: 16px 18px; min-width: 0; }
         .ct-right { display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,0.1); }
-        .ct-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 22px; min-height: 3.5rem; }
+        .ct-head { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 10px 20px; min-height: 3.5rem; }
         .ct-col { min-width: 0; animation: ct-fade 140ms ease-out; }
-        .ct-col.grow { flex: 1 1 150px; }
+        .ct-col.grow { flex: 0 1 auto; min-width: 0; }
         .ct-label { font-size: 0.78rem; line-height: 1.2; color: #a8a8a8; font-weight: 600; white-space: nowrap; }
         .ct-label.plain { font-weight: 400; }
         .ct-big { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 1.9rem; line-height: 1.1; font-weight: 400; letter-spacing: -0.02em; color: #fff; }
         .ct-arrow { flex: 0 0 auto; }
         .ct-delta { font-size: 0.9rem; font-weight: 600; letter-spacing: 0; }
         .ct-val { margin-top: 6px; font-size: 0.78rem; line-height: 1.2; font-weight: 700; color: #fff; white-space: nowrap; }
-        .ct-val.title { overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+        .ct-val.title { overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         .ct-val span { color: #7a7a7a; font-weight: 500; }
         .ct-chartwrap { margin-top: 12px; }
         .ct-chart { width: 100%; height: auto; display: block; overflow: visible; cursor: crosshair; touch-action: pan-y; border-radius: 6px; }
