@@ -119,7 +119,7 @@ const parseContest = (j) => {
 
   // Only contests the user actually took part in, oldest -> newest.
   const points = history
-    .filter((h) => h && h.attended !== false && toNum(h.rating) !== null)
+    .filter((h) => h && h.attended === true && toNum(h.rating) !== null)
     .map((h) => ({
       rating: toNum(h.rating),
       time: toNum(h.contest?.startTime),
@@ -221,114 +221,151 @@ const TrendArrow = ({ dir }) => {
 };
 
 const ContestPanel = ({ contest }) => {
-  const { rating, attended, globalRanking, totalParticipants, topPercentage, points } = contest;
-  const [hover, setHover] = useState(null); // index of the hovered / keyboard-selected contest
+  const {
+    rating,
+    attended,
+    globalRanking,
+    totalParticipants,
+    topPercentage,
+    points = [],
+  } = contest;
+
+  const [hover, setHover] = useState(null);
   const svgRef = useRef(null);
 
   const chart = useMemo(() => {
-    if (points.length < 2) return null;
-    const ratings = points.map((p) => p.rating);
+    if (!Array.isArray(points) || points.length < 2) return null;
+
+    const ratings = points.map((point) => point.rating).filter(Number.isFinite);
+    if (ratings.length < 2) return null;
+
     const min = Math.min(...ratings);
     const max = Math.max(...ratings);
     const span = max - min || 1;
-    const first = points[0].time;
-    const last = points[points.length - 1].time;
-    const useTime = points.every((p) => p.time !== null) && last > first;
+    const firstTime = points[0].time;
+    const lastTime = points[points.length - 1].time;
+    const useTime =
+      points.every((point) => Number.isFinite(point.time)) &&
+      lastTime > firstTime;
 
-    const pts = points.map((p, i) => ({
-      ...p,
-      x: CH_PX + (useTime ? (p.time - first) / (last - first) : i / (points.length - 1)) * (CH_W - 2 * CH_PX),
-      y: CH_PY + (1 - (p.rating - min) / span) * (CH_H - 2 * CH_PY),
+    const pts = points.map((point, index) => ({
+      ...point,
+      x:
+        CH_PX +
+        (useTime
+          ? (point.time - firstTime) / (lastTime - firstTime)
+          : index / (points.length - 1)) *
+          (CH_W - 2 * CH_PX),
+      y: CH_PY + (1 - (point.rating - min) / span) * (CH_H - 2 * CH_PY),
     }));
-    const peak = pts.reduce((a, b) => (b.rating > a.rating ? b : a));
+
+    const peak = pts.reduce((best, point) =>
+      point.rating > best.rating ? point : best
+    );
+
     return {
       pts,
       peak,
-      // One segment per contest pair: green when the rating rose, red when it dipped.
-      segs: pts.slice(1).map((p, i) => {
-        const a = pts[i];
-        const dir = p.rating > a.rating ? 'UP' : p.rating < a.rating ? 'DOWN' : 'FLAT';
-        return { x1: a.x, y1: a.y, x2: p.x, y2: p.y, color: trendColor(dir) };
+      segs: pts.slice(1).map((point, index) => {
+        const previous = pts[index];
+        const direction =
+          point.rating > previous.rating
+            ? 'UP'
+            : point.rating < previous.rating
+              ? 'DOWN'
+              : 'FLAT';
+        return {
+          x1: previous.x,
+          y1: previous.y,
+          x2: point.x,
+          y2: point.y,
+          color: trendColor(direction),
+        };
       }),
-      from: monthYear(first),
-      to: monthYear(last),
+      from: monthYear(firstTime),
+      to: monthYear(lastTime),
     };
   }, [points]);
 
-  // Which histogram bar holds the user, counted from the high-rating end.
   const hlIndex = useMemo(() => {
-    if (topPercentage === null) return null;
-    let acc = 0;
-    for (let i = DIST.length - 1; i >= 0; i--) {
-      acc += DIST[i];
-      if ((acc / DIST_TOTAL) * 100 >= topPercentage) return i;
+    if (topPercentage == null) return null;
+    let accumulated = 0;
+    for (let index = DIST.length - 1; index >= 0; index -= 1) {
+      accumulated += DIST[index];
+      if ((accumulated / DIST_TOTAL) * 100 >= topPercentage) return index;
     }
     return 0;
   }, [topPercentage]);
 
-  const hp = chart && hover !== null ? chart.pts[hover] ?? null : null;
-  const hpDir = hp
-    ? hp.trend === 'UP' || hp.trend === 'DOWN'
-      ? hp.trend
-      : hover > 0
-        ? chart.pts[hover].rating >= chart.pts[hover - 1].rating ? 'UP' : 'DOWN'
-        : 'FLAT'
-    : 'FLAT';
-  const hpColor = trendColor(hpDir);
+  const hoveredPoint =
+    chart && hover !== null ? chart.pts[hover] ?? null : null;
 
-  // Rating change at contest i. LeetCode ratings start at 1500, so the first contest compares to that.
-  const changeAt = (i) => (points[i] ? points[i].rating - (i > 0 ? points[i - 1].rating : 1500) : null);
-  const dirAt = (i) => {
-    const p = points[i];
-    if (!p) return null;
-    if (p.trend === 'UP' || p.trend === 'DOWN') return p.trend;
-    const d = changeAt(i);
-    return d === null || Math.round(d) === 0 ? null : d > 0 ? 'UP' : 'DOWN';
+  const changeAt = (index) => {
+    const point = points[index];
+    if (!point) return null;
+    const previousRating = index > 0 ? points[index - 1].rating : 1500;
+    return point.rating - previousRating;
   };
-  // Hovering shows that contest; otherwise the latest contest's change.
-  const shownIdx = hp ? hover : points.length - 1;
-  const shownDir = dirAt(shownIdx);
-  const shownDelta = changeAt(shownIdx);
 
-  // Peak chip sits just right of the white dot (flips left near the right edge).
-  const chipW = 42;
-  const chipLeft = chart ? chart.peak.x > CH_W - chipW - 16 : false;
-  const chipX = chart ? (chipLeft ? chart.peak.x - chipW - 8 : chart.peak.x + 8) : 0;
-  const chipY = chart ? chart.peak.y - 3 : 0;
+  const selectedIndex = hoveredPoint ? hover : points.length - 1;
+  const selectedChange = changeAt(selectedIndex);
+  const selectedDirection =
+    selectedChange == null || Math.round(selectedChange) === 0
+      ? null
+      : selectedChange > 0
+        ? 'UP'
+        : 'DOWN';
 
-  // Snap to the contest nearest the pointer (mouse, touch and pen).
   const pickNearest = (clientX) => {
-    const el = svgRef.current;
-    if (!el || !chart) return;
-    const rect = el.getBoundingClientRect();
+    const svg = svgRef.current;
+    if (!svg || !chart) return;
+
+    const rect = svg.getBoundingClientRect();
     if (!rect.width) return;
-    const x = ((clientX - rect.left) / rect.width) * CH_W;
-    let best = 0;
-    let bestDist = Infinity;
-    chart.pts.forEach((p, i) => {
-      const d = Math.abs(p.x - x);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
+
+    // Convert the pointer's screen position into the SVG viewBox coordinate system.
+    const pointerX = ((clientX - rect.left) / rect.width) * CH_W;
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+
+    chart.pts.forEach((point, index) => {
+      const distance = Math.abs(point.x - pointerX);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
       }
     });
-    setHover(best);
+
+    setHover(nearestIndex);
   };
 
-  // Keyboard: focus the chart, then use the arrow keys to step through contests.
-  const onChartKeyDown = (e) => {
+  const onChartKeyDown = (event) => {
     if (!chart) return;
-    const last = chart.pts.length - 1;
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      setHover((h) => (h === null ? 0 : Math.min(last, h + 1)));
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      setHover((h) => (h === null ? last : Math.max(0, h - 1)));
-    } else if (e.key === 'Escape') {
+    const lastIndex = chart.pts.length - 1;
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setHover((current) =>
+        current === null ? 0 : Math.min(lastIndex, current + 1)
+      );
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setHover((current) =>
+        current === null ? lastIndex : Math.max(0, current - 1)
+      );
+    } else if (event.key === 'Escape') {
       setHover(null);
     }
   };
+
+  const chipWidth = 42;
+  const chipLeft = chart ? chart.peak.x > CH_W - chipWidth - 16 : false;
+  const chipX = chart
+    ? chipLeft
+      ? chart.peak.x - chipWidth - 8
+      : chart.peak.x + 8
+    : 0;
+  const chipY = chart ? chart.peak.y - 3 : 0;
 
   return (
     <div className="ct">
@@ -336,10 +373,8 @@ const ContestPanel = ({ contest }) => {
         .ct { flex: 999 1 480px; min-width: 0; align-self: stretch; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(210px, 1fr); margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: #262626; color: #fff; font-variant-numeric: tabular-nums; }
         .ct-left, .ct-right { padding: 16px 18px; min-width: 0; }
         .ct-right { display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,0.1); }
-
         .ct-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 22px; min-height: 3.5rem; }
         .ct-col { min-width: 0; animation: ct-fade 140ms ease-out; }
-        /* date + contest name column: stacked, takes the leftover space */
         .ct-col.grow { flex: 1 1 150px; }
         .ct-label { font-size: 0.78rem; line-height: 1.2; color: #a8a8a8; font-weight: 600; white-space: nowrap; }
         .ct-label.plain { font-weight: 400; }
@@ -347,88 +382,98 @@ const ContestPanel = ({ contest }) => {
         .ct-arrow { flex: 0 0 auto; }
         .ct-delta { font-size: 0.9rem; font-weight: 600; letter-spacing: 0; }
         .ct-val { margin-top: 6px; font-size: 0.78rem; line-height: 1.2; font-weight: 700; color: #fff; white-space: nowrap; }
-        .ct-val.title { overflow: hidden; text-overflow: ellipsis; }
+        .ct-val.title { overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
         .ct-val span { color: #7a7a7a; font-weight: 500; }
-
         .ct-chartwrap { margin-top: 12px; }
         .ct-chart { width: 100%; height: auto; display: block; overflow: visible; cursor: crosshair; touch-action: pan-y; border-radius: 6px; }
         .ct-chart:focus-visible { outline: 2px solid #e05a1c; outline-offset: 4px; }
         .ct-chip { transition: opacity 150ms ease; }
         .ct-axis { display: flex; justify-content: space-between; margin-top: 2px; font-size: 0.78rem; color: #a8a8a8; }
-
         .ct-top { margin-top: 0; }
         .ct-hist { display: grid; grid-template-columns: repeat(20, 1fr); gap: 4px; align-items: end; height: 120px; margin-top: auto; padding-top: 14px; }
         .ct-hist i { display: block; border-radius: 2px; background: #3a3a3a; min-height: 8px; }
         .ct-hist i.on { background: #FFA116; }
-
         @keyframes ct-fade { from { opacity: 0.35; } to { opacity: 1; } }
         @media (max-width: 760px) {
           .ct { grid-template-columns: 1fr; }
-          .ct-right { border-left: 0; border-top: 1px solid rgba(255,255,255,0.1); }
+          .ct-right { border-left: 0; border-top: 1px solid rgba(255,255,255,0.1); min-height: 150px; }
         }
         @media (prefers-reduced-motion: reduce) { .ct-col { animation: none; } .ct-chip { transition: none; } }
       `}</style>
 
       <div className="ct-left">
-        {/* Header: shows overall stats, swaps in place to the hovered contest */}
         <div className="ct-head" role="status" aria-live="polite">
-          <div className="ct-col" key={`r-${hover}`}>
+          <div className="ct-col" key={`rating-${hover}`}>
             <div className="ct-label">Contest Rating</div>
             <div className="ct-big">
-              {fmtInt(hp ? hp.rating : rating)}
-              <TrendArrow dir={shownDir} />
-              {shownDir && shownDelta !== null && (
-                <span className="ct-delta" style={{ color: trendColor(shownDir) }}>
-                  {shownDelta > 0 ? '+' : '\u2212'}{fmtInt(Math.abs(shownDelta))}
-                </span>
+              {fmtInt(hoveredPoint ? hoveredPoint.rating : rating)}
+              {selectedDirection && (
+                <>
+                  <TrendArrow dir={selectedDirection} />
+                  <span
+                    className="ct-delta"
+                    style={{ color: trendColor(selectedDirection) }}
+                  >
+                    {selectedChange > 0 ? '+' : '\u2212'}
+                    {fmtInt(Math.abs(selectedChange))}
+                  </span>
+                </>
               )}
             </div>
           </div>
 
-          {hp ? (
+          {hoveredPoint ? (
             <>
-              {/* Date with the contest name underneath */}
-              <div className="ct-col grow" key={`d-${hover}`}>
-                <div className="ct-label plain">{fullDate(hp.time) ?? 'Contest'}</div>
-                <div className="ct-val title" title={hp.title ?? ''}>{hp.title ?? 'Contest'}</div>
+              <div className="ct-col grow" key={`contest-${hover}`}>
+                <div className="ct-label plain">
+                  {fullDate(hoveredPoint.time) ?? 'Contest'}
+                </div>
+                <div
+                  className="ct-val title"
+                  title={hoveredPoint.title ?? ''}
+                >
+                  {hoveredPoint.title ?? 'Contest'}
+                </div>
               </div>
 
-              {hp.ranking !== null && (
-                <div className="ct-col" key={`k-${hover}`}>
-                  <div className="ct-label plain">Rank</div>
-                  <div className="ct-val">{fmtInt(hp.ranking)}</div>
+              <div className="ct-col" key={`rank-${hover}`}>
+                <div className="ct-label plain">Rank</div>
+                <div className="ct-val">
+                  {hoveredPoint.ranking == null
+                    ? '—'
+                    : fmtInt(hoveredPoint.ranking)}
                 </div>
-              )}
+              </div>
 
-              {hp.solved !== null && hp.total !== null && (
-                <div className="ct-col" key={`s-${hover}`}>
-                  <div className="ct-label plain">Solved</div>
-                  <div className="ct-val">{hp.solved}/{hp.total}</div>
+              <div className="ct-col" key={`solved-${hover}`}>
+                <div className="ct-label plain">Solved</div>
+                <div className="ct-val">
+                  {hoveredPoint.solved != null && hoveredPoint.total != null
+                    ? `${hoveredPoint.solved} / ${hoveredPoint.total}`
+                    : '—'}
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <>
-              {globalRanking !== null && (
-                <div className="ct-col" key="g">
-                  <div className="ct-label plain">Global Ranking</div>
-                  <div className="ct-val">
-                    {fmtInt(globalRanking)}
-                    {totalParticipants !== null && <span>/{fmtInt(totalParticipants)}</span>}
-                  </div>
+              <div className="ct-col" key="global-ranking">
+                <div className="ct-label plain">Global Ranking</div>
+                <div className="ct-val">
+                  {globalRanking == null ? '—' : fmtInt(globalRanking)}
+                  {totalParticipants != null && (
+                    <span>/{fmtInt(totalParticipants)}</span>
+                  )}
                 </div>
-              )}
-              {attended !== null && (
-                <div className="ct-col" key="a">
-                  <div className="ct-label plain">Attended</div>
-                  <div className="ct-val">{attended}</div>
-                </div>
-              )}
+              </div>
+              <div className="ct-col" key="attended">
+                <div className="ct-label plain">Attended</div>
+                <div className="ct-val">{attended ?? '—'}</div>
+              </div>
             </>
           )}
         </div>
 
-        {chart && (
+        {chart ? (
           <div className="ct-chartwrap">
             <svg
               ref={svgRef}
@@ -436,35 +481,83 @@ const ContestPanel = ({ contest }) => {
               viewBox={`0 0 ${CH_W} ${CH_H}`}
               role="img"
               tabIndex={0}
-              aria-label={`Contest rating history across ${points.length} contests, peak ${fmtInt(chart.peak.rating)}. Use the left and right arrow keys to inspect each contest.`}
-              onPointerMove={(e) => pickNearest(e.clientX)}
-              onPointerDown={(e) => pickNearest(e.clientX)}
+              aria-label={`Contest rating history across ${points.length} contests. Hover or use arrow keys to inspect contest details.`}
+              onPointerMove={(event) => pickNearest(event.clientX)}
+              onPointerDown={(event) => pickNearest(event.clientX)}
               onPointerLeave={() => setHover(null)}
               onKeyDown={onChartKeyDown}
               onBlur={() => setHover(null)}
             >
-              {/* crosshair sits behind the line */}
-              {hp && <line x1={hp.x} x2={hp.x} y1="0" y2={CH_H} stroke={hpColor} strokeOpacity="0.75" strokeWidth="1.2" />}
+              {hoveredPoint && (
+                <line
+                  x1={hoveredPoint.x}
+                  x2={hoveredPoint.x}
+                  y1="0"
+                  y2={CH_H}
+                  stroke={trendColor(selectedDirection)}
+                  strokeOpacity="0.85"
+                  strokeWidth="1.2"
+                />
+              )}
 
-              {chart.segs.map((g, i) => (
-                <line key={i} x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2} stroke={g.color} strokeWidth="2.2" strokeLinecap="round" />
+              {chart.segs.map((segment, index) => (
+                <line
+                  key={`segment-${index}`}
+                  x1={segment.x1}
+                  y1={segment.y1}
+                  x2={segment.x2}
+                  y2={segment.y2}
+                  stroke={hoveredPoint ? '#FFA116' : segment.color}
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
               ))}
 
-              {/* peak marker + value chip (chip fades out while hovering) */}
-              <circle cx={chart.peak.x} cy={chart.peak.y} r="4" fill="#fff" />
-              <g className="ct-chip" aria-hidden="true" style={{ opacity: hp ? 0 : 1 }}>
-                <rect x={chipX} y={chipY} width={chipW} height="19" rx="5" fill="#2b2b2b" stroke="rgba(255,255,255,0.18)" />
-                <text x={chipX + chipW / 2} y={chipY + 13} textAnchor="middle" fontSize="11" fill="#d0d0d0">
-                  {fmtInt(chart.peak.rating)}
-                </text>
-              </g>
+              {/* Each point is API-backed and independently hoverable. */}
+              {chart.pts.map((point, index) => (
+                <circle
+                  key={`point-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={hover === index ? 5.5 : 3.5}
+                  fill={hover === index ? '#FFA116' : '#fff'}
+                  stroke={hover === index ? '#fff' : 'none'}
+                  strokeWidth="1.4"
+                  style={{ cursor: 'crosshair' }}
+                />
+              ))}
 
-              {/* hovered contest: glow halo + trend-coloured dot */}
-              {hp && (
-                <>
-                  <circle cx={hp.x} cy={hp.y} r="11" fill={hpColor} fillOpacity="0.28" />
-                  <circle cx={hp.x} cy={hp.y} r="5.5" fill={hpColor} stroke="#fff" strokeOpacity="0.75" strokeWidth="1.8" />
-                </>
+              {!hoveredPoint && (
+                <g className="ct-chip" aria-hidden="true">
+                  <rect
+                    x={chipX}
+                    y={chipY}
+                    width={chipWidth}
+                    height="19"
+                    rx="5"
+                    fill="#2b2b2b"
+                    stroke="rgba(255,255,255,0.18)"
+                  />
+                  <text
+                    x={chipX + chipWidth / 2}
+                    y={chipY + 13}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="#d0d0d0"
+                  >
+                    {fmtInt(chart.peak.rating)}
+                  </text>
+                </g>
+              )}
+
+              {hoveredPoint && (
+                <circle
+                  cx={hoveredPoint.x}
+                  cy={hoveredPoint.y}
+                  r="11"
+                  fill="#FFA116"
+                  fillOpacity="0.28"
+                />
               )}
             </svg>
 
@@ -475,10 +568,14 @@ const ContestPanel = ({ contest }) => {
               </div>
             )}
           </div>
+        ) : (
+          <div className="cp-empty">
+            Not enough contest history to display the rating graph.
+          </div>
         )}
       </div>
 
-      {topPercentage !== null && (
+      {topPercentage != null && (
         <div className="ct-right">
           <div className="ct-label plain">Top</div>
           <div className="ct-big ct-top">{topPercentage.toFixed(2)}%</div>
@@ -487,8 +584,12 @@ const ContestPanel = ({ contest }) => {
             role="img"
             aria-label={`Top ${topPercentage.toFixed(2)}% of contest participants`}
           >
-            {DIST.map((d, i) => (
-              <i key={i} className={i === hlIndex ? 'on' : ''} style={{ height: `${(d / DIST_MAX) * 100}%` }} />
+            {DIST.map((height, index) => (
+              <i
+                key={index}
+                className={index === hlIndex ? 'on' : ''}
+                style={{ height: `${(height / DIST_MAX) * 100}%` }}
+              />
             ))}
           </div>
         </div>
@@ -927,7 +1028,7 @@ const CodingProfiles = () => {
       <style>{`
         .cp-section { position: relative; background: #050505; padding: 7rem 1.25rem 5rem; overflow: hidden; font-family: 'Manrope', system-ui, sans-serif; }
         .cp-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 62% 35%, rgba(224,90,28,0.18), transparent 32%); }
-        .cp-shell { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+        .cp-shell { max-width: 1480px; margin: 0 auto; position: relative; z-index: 1; }
 
         .cp-header { text-align: center; margin-bottom: 2.4rem; }
         .cp-title { margin: 0 0 0.9rem; font-size: clamp(2.5rem, 5vw, 4rem); line-height: 1.05; letter-spacing: -0.04em; color: #fff; font-family: 'Neue Machina', 'Manrope', sans-serif; }
@@ -986,22 +1087,22 @@ const CodingProfiles = () => {
         .ghm-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 0.4rem; font-size: 0.7rem; color: #a8a8a8; }
         .ghm-legend i { width: 11px; height: 11px; border-radius: 3px; display: block; }
 
-        /* LeetCode widget */
-        .lc { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 18px 20px; color: #fff; font-variant-numeric: tabular-nums; }
-        .lc-ring { position: relative; width: 190px; height: 190px; flex: 0 0 auto; filter: drop-shadow(0 0 20px rgba(245,166,35,0.07)); }
+        /* LeetCode widget: ring | tiles | contest panel in one row */
+        .lc { display: grid; grid-template-columns: 190px 210px minmax(0, 1fr); gap: 18px 20px; align-items: stretch; color: #fff; font-variant-numeric: tabular-nums; }
+        .lc-ring { position: relative; width: 190px; height: 190px; align-self: center; filter: drop-shadow(0 0 20px rgba(245,166,35,0.07)); }
         .lc-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 10px; }
         .lc-num { display: flex; align-items: baseline; gap: 3px; line-height: 1; }
         .lc-num span { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; }
         .lc-num small { font-size: 15px; color: #9a9a9a; }
         .lc-solved { margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
         .lc-solved span { color: #2CBB5D; }
-        .lc-tiles { display: flex; flex-direction: column; gap: 10px; flex: 1 1 150px; min-width: 150px; max-width: 260px; }
+        .lc-tiles { display: flex; flex-direction: column; justify-content: center; gap: 10px; min-width: 0; }
         .lc-tile { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); border-radius: 10px; padding: 11px 16px; text-align: left; border: 1px solid rgba(255,255,255,0.06); transition: border-color 180ms, transform 180ms ease; }
         .lc-tile:hover { transform: translateY(-1px); }
         .lc-tile:focus-visible { outline: 2px solid #e05a1c; outline-offset: 2px; }
         .lc-tile-label { font-weight: 600; font-size: 14px; }
         .lc-tile-value { font-weight: 700; font-size: 15px; margin-top: 5px; }
-        .lc-extras { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 6px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .lc-extras { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 6px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }
         .lc-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 12px; text-align: center; min-width: 0; }
         .lc-stat-value { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
         .lc-stat-label { margin-top: 3px; font-size: 0.72rem; color: #a8a8a8; }
@@ -1009,11 +1110,13 @@ const CodingProfiles = () => {
 
         .cp-chip { display: inline-block; border-radius: 999px; border: 1px solid rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); color: #6ee7b7; padding: 0.3rem 0.7rem; font-size: 0.75rem; font-weight: 600; }
 
+        @media (max-width: 1100px) {
+          .lc { grid-template-columns: 190px minmax(0, 1fr); }
+          .ct { grid-column: 1 / -1; }
+        }
         @media (max-width: 820px) {
           .cp-grid { grid-template-columns: 1fr; }
           .cp-panel.wide { grid-column: span 1; }
-          .lc { justify-content: center; }
-          .lc-tiles { max-width: 100%; width: 100%; }
         }
         @media (prefers-reduced-motion: reduce) {
           .cp-panel { transition: none; }
