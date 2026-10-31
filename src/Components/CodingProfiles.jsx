@@ -1,613 +1,1115 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCode, faChartLine, faTrophy, faFire } from '@fortawesome/free-solid-svg-icons';
-import { faGithub } from '@fortawesome/free-brands-svg-icons';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-const CodingProfiles = () => {
-  const [hoveredCard, setHoveredCard] = useState(null);
-  const [spotlightOn, setSpotlightOn] = useState(false);
-  const sectionRef = useRef(null);
+/* ------------------------------------------------------------------ */
+/*  EDIT THIS BLOCK: only usernames live here. Every number on the     */
+/*  page (GitHub, LeetCode, GfG) is fetched from an API at load time.  */
+/* ------------------------------------------------------------------ */
+const PROFILE_DATA = {
+  github: { username: 'Avinash2912', url: 'https://github.com/Avinash2912' },
+  leetcode: { username: 'Avinash_1912' },
+  gfg: { username: 'avinashjha832' },
+};
 
-  useEffect(() => {
-    const node = sectionRef.current;
-    if (!node) return;
+const HEAT = [
+  'rgba(255,255,255,0.08)',
+  '#0e4429',
+  '#006d32',
+  '#26a641',
+  '#39d353',
+];
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setSpotlightOn(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.25 }
-    );
+/* ------------------------------ Shared fetch helpers --------------- */
+// Free hosts can cold-start slowly (30-60s), so each request gets a generous timeout.
+const fetchJson = async (url, parentSignal, ms = 45000) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  const onAbort = () => ctrl.abort();
+  parentSignal.addEventListener('abort', onAbort);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+    parentSignal.removeEventListener('abort', onAbort);
+  }
+};
 
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+// Accepts numbers or numeric strings ("224", "00"); anything else -> null.
+const toNum = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const n = parseFloat(String(v ?? '').replace(/[^\d.-]/g, ''));
+  return Number.isFinite(n) ? n : null;
+};
 
-  const profiles = [
-    {
-      id: 'leetcode',
-      name: 'LeetCode',
-      username: 'Avinash_1912',
-      url: 'https://leetcode.com/u/Avinash_1912/',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/1/19/LeetCode_logo_black.png',
-      color: '#FFA116',
-      bgGradient: 'from-[#FFA116]/20 to-[#FF8C00]/10',
-      stats: {
-        label: 'Problems Solved',
-        icon: faChartLine
-      },
-      description: 'Competitive Programming Platform',
-      badge: 'Active Solver'
-    },
-    {
-      id: 'gfg',
-      name: 'GeeksforGeeks',
-      username: 'avinashjha832',
-      url: 'https://www.geeksforgeeks.org/user/avinashjha832/',
-      logo: 'https://media.geeksforgeeks.org/gfg-gg-logo.svg',
-      color: '#2F8D46',
-      bgGradient: 'from-[#2F8D46]/20 to-[#1F6B35]/10',
-      stats: {
-        label: 'Practice & Learn',
-        icon: faCode
-      },
-      description: 'DSA & Interview Prep',
-      badge: 'Problem Solver'
-    },
-    {
-      id: 'github',
-      name: 'GitHub',
-      username: 'Avinash2912',
-      url: 'https://github.com/Avinash2912',
-      logo: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
-      color: '#ffffff',
-      bgGradient: 'from-[#ffffff]/20 to-[#cccccc]/10',
-      stats: {
-        label: 'Open Source',
-        icon: faFire
-      },
-      description: 'Code Repository & Projects',
-      badge: 'Active Developer'
+/* ------------------------------ LeetCode data ---------------------- */
+// Unofficial community APIs (LeetCode has no public REST API). All are tried in parallel;
+// each one may supply the solved counts, the question totals, or both.
+const LC_URLS = [
+  (u) => `https://alfa-leetcode-api.onrender.com/${u}/solved`,
+  (u) => `https://alfa-leetcode-api.onrender.com/userProfile/${u}`,
+  (u) => `https://leetcode-stats.tashif.codes/${u}`,
+];
+
+const byDiff = (arr, name) =>
+  Array.isArray(arr) ? toNum(arr.find((x) => x?.difficulty === name)?.count) : null;
+
+const firstNum = (...vals) => {
+  for (const v of vals) {
+    const n = toNum(v);
+    if (n !== null && v !== '' && v !== undefined && v !== null) return n;
+  }
+  return null;
+};
+
+// Tolerant of several response shapes. Returns { counts, totals } (either may be null) or null.
+const parseLeetCode = (j) => {
+  if (!j || typeof j !== 'object') return null;
+  const ac = j.acSubmissionNum ?? j.matchedUser?.submitStats?.acSubmissionNum;
+  const all = j.allQuestionsCount;
+
+  const easy = firstNum(j.easySolved, byDiff(ac, 'Easy'));
+  const medium = firstNum(j.mediumSolved, byDiff(ac, 'Medium'));
+  const hard = firstNum(j.hardSolved, byDiff(ac, 'Hard'));
+  const counts = [easy, medium, hard].every((n) => n !== null)
+    ? {
+        easy,
+        medium,
+        hard,
+        solved: firstNum(j.solvedProblem, j.totalSolved, byDiff(ac, 'All'), easy + medium + hard),
+      }
+    : null;
+
+  const tEasy = firstNum(j.totalEasy, byDiff(all, 'Easy'));
+  const tMedium = firstNum(j.totalMedium, byDiff(all, 'Medium'));
+  const tHard = firstNum(j.totalHard, byDiff(all, 'Hard'));
+  const tAll = firstNum(j.totalQuestions, byDiff(all, 'All'));
+  const totals = [tEasy, tMedium, tHard].every((n) => n !== null)
+    ? { easy: tEasy, medium: tMedium, hard: tHard, all: tAll ?? tEasy + tMedium + tHard }
+    : null;
+
+  // Extra profile details (only the tashif API provides these).
+  const d = j.data && typeof j.data === 'object' ? j.data : {};
+  const extras = {
+    rating: firstNum(d.currentRating, j.currentRating),
+    peakRating: firstNum(d.maxRating, j.maxRating),
+    contests: firstNum(d.totalContests, j.totalContests),
+    activeDays: firstNum(d.totalActiveDays, j.totalActiveDays),
+    badges: firstNum(d.badgesCount, j.badgesCount),
+    acceptance: firstNum(j.acceptanceRate),
+    ranking: firstNum(j.ranking),
+    contributionPoints: firstNum(j.contributionPoints, d.contributionPoints),
+    reputation: firstNum(j.reputation, d.reputation),
+  };
+  const hasExtras = Object.values(extras).some((v) => v !== null);
+
+  return counts || totals || hasExtras
+    ? { counts, totals, extras: hasExtras ? extras : null }
+    : null;
+};
+
+// Contest ranking + rating history (LeetCode's userContestRankingInfo, via alfa-leetcode-api).
+const LC_CONTEST_URL = (u) => `https://alfa-leetcode-api.onrender.com/userContestRankingInfo/${u}`;
+
+const parseContest = (j) => {
+  if (!j || typeof j !== 'object') return null;
+  const root = j.data && typeof j.data === 'object' ? j.data : j;
+  const r = root.userContestRanking ?? null;
+  const history = Array.isArray(root.userContestRankingHistory) ? root.userContestRankingHistory : [];
+
+  // Only contests the user actually took part in, oldest -> newest.
+  const points = history
+    .filter((h) => h && h.attended !== false && toNum(h.rating) !== null)
+    .map((h) => ({
+      rating: toNum(h.rating),
+      time: toNum(h.contest?.startTime),
+      title: h.contest?.title ?? null,
+      ranking: toNum(h.ranking),
+      solved: toNum(h.problemsSolved),
+      total: toNum(h.totalProblems),
+      trend: h.trendDirection ?? null,
+      finish: toNum(h.finishTimeInSeconds),
+    }))
+    .sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
+
+  const rating = toNum(r?.rating) ?? (points.length ? points[points.length - 1].rating : null);
+  if (rating === null && !points.length) return null;
+
+  return {
+    rating,
+    attended: toNum(r?.attendedContestsCount) ?? (points.length || null),
+    globalRanking: toNum(r?.globalRanking),
+    totalParticipants: toNum(r?.totalParticipants),
+    topPercentage: toNum(r?.topPercentage),
+    points,
+  };
+};
+
+/* ------------------------------ GfG data --------------------------- */
+const GFG_URLS = [
+  (u) => `https://gfg-stats.tashif.codes/${u}/profile`,
+  (u) => `https://geeks-for-geeks-api.vercel.app/${u}`,
+];
+
+const parseGfg = (j) => {
+  if (!j || typeof j !== 'object') return null;
+  const info = j.info ?? j;
+  const solved = toNum(info.totalProblemsSolved ?? info.solved);
+  if (solved === null) return null;
+  return { solved, score: toNum(info.codingScore), streak: toNum(info.currentStreak) };
+};
+
+// Combine two partial "extras" objects: keep the first real value for every field.
+const mergeExtras = (a, b) => {
+  if (!a) return b;
+  if (!b) return a;
+  const out = { ...a };
+  for (const k of Object.keys(b)) if (out[k] == null) out[k] = b[k];
+  return out;
+};
+
+/* ------------------------------ LeetCode contest panel ------------- */
+const fmtInt = (n) => Math.round(n).toLocaleString('en-US');
+const fullDate = (sec) =>
+  sec ? new Date(sec * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+const monthYear = (sec) =>
+  sec ? new Date(sec * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null;
+
+const CH_W = 520;
+const CH_H = 110;
+const CH_PX = 6;
+const CH_PY = 14;
+
+// Shape of LeetCode's contest-rating distribution (relative bar heights, low -> high rating).
+// The API doesn't return the histogram, so the highlighted bar is placed from topPercentage.
+const DIST = [10, 10, 10, 18, 42, 110, 86, 58, 38, 28, 20, 14, 10, 8, 8, 8, 8, 8, 8, 8];
+const DIST_MAX = Math.max(...DIST);
+const DIST_TOTAL = DIST.reduce((a, b) => a + b, 0);
+
+const fmtDuration = (sec) => {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.round(sec % 60);
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+const UP_COLOR = '#2CBB5D';
+const DOWN_COLOR = '#EF4743';
+const FLAT_COLOR = '#FFA116';
+const trendColor = (dir) => (dir === 'UP' ? UP_COLOR : dir === 'DOWN' ? DOWN_COLOR : FLAT_COLOR);
+
+const TrendArrow = ({ dir }) => {
+  if (dir !== 'UP' && dir !== 'DOWN') return null;
+  const up = dir === 'UP';
+  return (
+    <svg
+      className="ct-arrow"
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke={up ? '#2CBB5D' : '#EF4743'}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-label={up ? 'Rating went up' : 'Rating went down'}
+      role="img"
+    >
+      {up ? <path d="M6 18 L18 6 M8 6 H18 V16" /> : <path d="M6 6 L18 18 M18 8 V18 H8" />}
+    </svg>
+  );
+};
+
+const ContestPanel = ({ contest }) => {
+  const { rating, attended, globalRanking, totalParticipants, topPercentage, points } = contest;
+  const [hover, setHover] = useState(null); // index of the hovered / keyboard-selected contest
+  const svgRef = useRef(null);
+
+  const chart = useMemo(() => {
+    if (points.length < 2) return null;
+    const ratings = points.map((p) => p.rating);
+    const min = Math.min(...ratings);
+    const max = Math.max(...ratings);
+    const span = max - min || 1;
+    const first = points[0].time;
+    const last = points[points.length - 1].time;
+    const useTime = points.every((p) => p.time !== null) && last > first;
+
+    const pts = points.map((p, i) => ({
+      ...p,
+      x: CH_PX + (useTime ? (p.time - first) / (last - first) : i / (points.length - 1)) * (CH_W - 2 * CH_PX),
+      y: CH_PY + (1 - (p.rating - min) / span) * (CH_H - 2 * CH_PY),
+    }));
+    const peak = pts.reduce((a, b) => (b.rating > a.rating ? b : a));
+    return {
+      pts,
+      peak,
+      // One segment per contest pair: green when the rating rose, red when it dipped.
+      segs: pts.slice(1).map((p, i) => {
+        const a = pts[i];
+        const dir = p.rating > a.rating ? 'UP' : p.rating < a.rating ? 'DOWN' : 'FLAT';
+        return { x1: a.x, y1: a.y, x2: p.x, y2: p.y, color: trendColor(dir) };
+      }),
+      from: monthYear(first),
+      to: monthYear(last),
+    };
+  }, [points]);
+
+  // Which histogram bar holds the user, counted from the high-rating end.
+  const hlIndex = useMemo(() => {
+    if (topPercentage === null) return null;
+    let acc = 0;
+    for (let i = DIST.length - 1; i >= 0; i--) {
+      acc += DIST[i];
+      if ((acc / DIST_TOTAL) * 100 >= topPercentage) return i;
     }
-  ];
+    return 0;
+  }, [topPercentage]);
+
+  const hp = chart && hover !== null ? chart.pts[hover] ?? null : null;
+  const hpDir = hp
+    ? hp.trend === 'UP' || hp.trend === 'DOWN'
+      ? hp.trend
+      : hover > 0
+        ? chart.pts[hover].rating >= chart.pts[hover - 1].rating ? 'UP' : 'DOWN'
+        : 'FLAT'
+    : 'FLAT';
+  const hpColor = trendColor(hpDir);
+
+  // Rating change at contest i. LeetCode ratings start at 1500, so the first contest compares to that.
+  const changeAt = (i) => (points[i] ? points[i].rating - (i > 0 ? points[i - 1].rating : 1500) : null);
+  const dirAt = (i) => {
+    const p = points[i];
+    if (!p) return null;
+    if (p.trend === 'UP' || p.trend === 'DOWN') return p.trend;
+    const d = changeAt(i);
+    return d === null || Math.round(d) === 0 ? null : d > 0 ? 'UP' : 'DOWN';
+  };
+  // Hovering shows that contest; otherwise the latest contest's change.
+  const shownIdx = hp ? hover : points.length - 1;
+  const shownDir = dirAt(shownIdx);
+  const shownDelta = changeAt(shownIdx);
+
+  // Peak chip sits just right of the white dot (flips left near the right edge).
+  const chipW = 42;
+  const chipLeft = chart ? chart.peak.x > CH_W - chipW - 16 : false;
+  const chipX = chart ? (chipLeft ? chart.peak.x - chipW - 8 : chart.peak.x + 8) : 0;
+  const chipY = chart ? chart.peak.y - 3 : 0;
+
+  // Snap to the contest nearest the pointer (mouse, touch and pen).
+  const pickNearest = (clientX) => {
+    const el = svgRef.current;
+    if (!el || !chart) return;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width) return;
+    const x = ((clientX - rect.left) / rect.width) * CH_W;
+    let best = 0;
+    let bestDist = Infinity;
+    chart.pts.forEach((p, i) => {
+      const d = Math.abs(p.x - x);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    });
+    setHover(best);
+  };
+
+  // Keyboard: focus the chart, then use the arrow keys to step through contests.
+  const onChartKeyDown = (e) => {
+    if (!chart) return;
+    const last = chart.pts.length - 1;
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setHover((h) => (h === null ? 0 : Math.min(last, h + 1)));
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setHover((h) => (h === null ? last : Math.max(0, h - 1)));
+    } else if (e.key === 'Escape') {
+      setHover(null);
+    }
+  };
 
   return (
-    <section ref={sectionRef} id="coding-profiles" className="relative min-h-screen bg-black py-24 px-4 sm:px-6 overflow-hidden">
+    <div className="ct">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+        .ct { flex: 999 1 480px; min-width: 0; align-self: stretch; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(210px, 1fr); margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: #262626; color: #fff; font-variant-numeric: tabular-nums; }
+        .ct-left, .ct-right { padding: 16px 18px; min-width: 0; }
+        .ct-right { display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,0.1); }
 
-        /* About-style background glow */
-        .cp-glow {
-          position: absolute;
-          top: 40%; left: 60%;
-          transform: translate(-50%, -50%);
-          width: 800px; height: 500px;
-          border-radius: 50%;
-          background: radial-gradient(ellipse at center,
-            rgba(100,22,5,0.45) 0%,
-            rgba(65,12,3,0.22)  38%,
-            rgba(30,6,1,0.08)   65%,
-            transparent 80%
-          );
-          filter: blur(32px);
-          pointer-events: none;
-          z-index: 0;
-          animation: cpGlowPulse 8s ease-in-out infinite;
-        }
-        @keyframes cpGlowPulse {
-          0%,100% { opacity: 0.8; transform: translate(-50%,-50%) scale(1); }
-          50%     { opacity: 1;   transform: translate(-50%,-50%) scale(1.06); }
-        }
+        .ct-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 22px; min-height: 3.5rem; }
+        .ct-col { min-width: 0; animation: ct-fade 140ms ease-out; }
+        /* date + contest name column: stacked, takes the leftover space */
+        .ct-col.grow { flex: 1 1 150px; }
+        .ct-label { font-size: 0.78rem; line-height: 1.2; color: #a8a8a8; font-weight: 600; white-space: nowrap; }
+        .ct-label.plain { font-weight: 400; }
+        .ct-big { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 1.9rem; line-height: 1.1; font-weight: 400; letter-spacing: -0.02em; color: #fff; }
+        .ct-arrow { flex: 0 0 auto; }
+        .ct-delta { font-size: 0.9rem; font-weight: 600; letter-spacing: 0; }
+        .ct-val { margin-top: 6px; font-size: 0.78rem; line-height: 1.2; font-weight: 700; color: #fff; white-space: nowrap; }
+        .ct-val.title { overflow: hidden; text-overflow: ellipsis; }
+        .ct-val span { color: #7a7a7a; font-weight: 500; }
 
-        /* Spotlight overlay (replaces beams/rays) */
-        .cp-spotlight {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          z-index: 0;
-          opacity: var(--cpSpotOpacity, 0);
-          transition: opacity 1800ms cubic-bezier(.16,1,.3,1);
-          transition-delay: 120ms;
+        .ct-chartwrap { margin-top: 12px; }
+        .ct-chart { width: 100%; height: auto; display: block; overflow: visible; cursor: crosshair; touch-action: pan-y; border-radius: 6px; }
+        .ct-chart:focus-visible { outline: 2px solid #e05a1c; outline-offset: 4px; }
+        .ct-chip { transition: opacity 150ms ease; }
+        .ct-axis { display: flex; justify-content: space-between; margin-top: 2px; font-size: 0.78rem; color: #a8a8a8; }
 
-          --cpSpotShiftX: -90px;
-          --cpSpotShiftY: -70px;
-          --cpSpotRotate: -8deg;
-          --cpSpotScale: 0.92;
-        }
-        .cp-spotlight.is-on {
-          --cpSpotOpacity: 0.95;
-          --cpSpotShiftX: 0px;
-          --cpSpotShiftY: 0px;
-          --cpSpotRotate: 0deg;
-          --cpSpotScale: 1;
-        }
+        .ct-top { margin-top: 0; }
+        .ct-hist { display: grid; grid-template-columns: repeat(20, 1fr); gap: 4px; align-items: end; height: 120px; margin-top: auto; padding-top: 14px; }
+        .ct-hist i { display: block; border-radius: 2px; background: #3a3a3a; min-height: 8px; }
+        .ct-hist i.on { background: #FFA116; }
 
-        /* Mirrored spotlight from top-right */
-        .cp-spotlight.cp-right {
-          --cpSpotOpacity: 0;
-          --cpSpotShiftX: 90px;
-          --cpSpotShiftY: -70px;
-          --cpSpotRotate: 8deg;
-          --cpSpotScale: 0.92;
+        @keyframes ct-fade { from { opacity: 0.35; } to { opacity: 1; } }
+        @media (max-width: 760px) {
+          .ct { grid-template-columns: 1fr; }
+          .ct-right { border-left: 0; border-top: 1px solid rgba(255,255,255,0.1); }
         }
-        .cp-spotlight.cp-right.is-on {
-          --cpSpotOpacity: 0.95;
-          --cpSpotShiftX: 0px;
-          --cpSpotShiftY: 0px;
-          --cpSpotRotate: 0deg;
-          --cpSpotScale: 1;
-        }
-        .cp-spotlight.cp-right::before {
-          left: 94%;
-          top: -28%;
-          width: 1400px;
-          height: 1200px;
-          background:
-            conic-gradient(
-              from 210deg at 50% 18%,
-              transparent 0deg,
-              rgba(224,90,28,0.00) 18deg,
-              rgba(224,90,28,0.22) 34deg,
-              rgba(224,90,28,0.10) 54deg,
-              rgba(224,90,28,0.00) 74deg,
-              transparent 360deg
+        @media (prefers-reduced-motion: reduce) { .ct-col { animation: none; } .ct-chip { transition: none; } }
+      `}</style>
+
+      <div className="ct-left">
+        {/* Header: shows overall stats, swaps in place to the hovered contest */}
+        <div className="ct-head" role="status" aria-live="polite">
+          <div className="ct-col" key={`r-${hover}`}>
+            <div className="ct-label">Contest Rating</div>
+            <div className="ct-big">
+              {fmtInt(hp ? hp.rating : rating)}
+              <TrendArrow dir={shownDir} />
+              {shownDir && shownDelta !== null && (
+                <span className="ct-delta" style={{ color: trendColor(shownDir) }}>
+                  {shownDelta > 0 ? '+' : '\u2212'}{fmtInt(Math.abs(shownDelta))}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {hp ? (
+            <>
+              {/* Date with the contest name underneath */}
+              <div className="ct-col grow" key={`d-${hover}`}>
+                <div className="ct-label plain">{fullDate(hp.time) ?? 'Contest'}</div>
+                <div className="ct-val title" title={hp.title ?? ''}>{hp.title ?? 'Contest'}</div>
+              </div>
+
+              {hp.ranking !== null && (
+                <div className="ct-col" key={`k-${hover}`}>
+                  <div className="ct-label plain">Rank</div>
+                  <div className="ct-val">{fmtInt(hp.ranking)}</div>
+                </div>
+              )}
+
+              {hp.solved !== null && hp.total !== null && (
+                <div className="ct-col" key={`s-${hover}`}>
+                  <div className="ct-label plain">Solved</div>
+                  <div className="ct-val">{hp.solved}/{hp.total}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {globalRanking !== null && (
+                <div className="ct-col" key="g">
+                  <div className="ct-label plain">Global Ranking</div>
+                  <div className="ct-val">
+                    {fmtInt(globalRanking)}
+                    {totalParticipants !== null && <span>/{fmtInt(totalParticipants)}</span>}
+                  </div>
+                </div>
+              )}
+              {attended !== null && (
+                <div className="ct-col" key="a">
+                  <div className="ct-label plain">Attended</div>
+                  <div className="ct-val">{attended}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {chart && (
+          <div className="ct-chartwrap">
+            <svg
+              ref={svgRef}
+              className="ct-chart"
+              viewBox={`0 0 ${CH_W} ${CH_H}`}
+              role="img"
+              tabIndex={0}
+              aria-label={`Contest rating history across ${points.length} contests, peak ${fmtInt(chart.peak.rating)}. Use the left and right arrow keys to inspect each contest.`}
+              onPointerMove={(e) => pickNearest(e.clientX)}
+              onPointerDown={(e) => pickNearest(e.clientX)}
+              onPointerLeave={() => setHover(null)}
+              onKeyDown={onChartKeyDown}
+              onBlur={() => setHover(null)}
+            >
+              {/* crosshair sits behind the line */}
+              {hp && <line x1={hp.x} x2={hp.x} y1="0" y2={CH_H} stroke={hpColor} strokeOpacity="0.75" strokeWidth="1.2" />}
+
+              {chart.segs.map((g, i) => (
+                <line key={i} x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2} stroke={g.color} strokeWidth="2.2" strokeLinecap="round" />
+              ))}
+
+              {/* peak marker + value chip (chip fades out while hovering) */}
+              <circle cx={chart.peak.x} cy={chart.peak.y} r="4" fill="#fff" />
+              <g className="ct-chip" aria-hidden="true" style={{ opacity: hp ? 0 : 1 }}>
+                <rect x={chipX} y={chipY} width={chipW} height="19" rx="5" fill="#2b2b2b" stroke="rgba(255,255,255,0.18)" />
+                <text x={chipX + chipW / 2} y={chipY + 13} textAnchor="middle" fontSize="11" fill="#d0d0d0">
+                  {fmtInt(chart.peak.rating)}
+                </text>
+              </g>
+
+              {/* hovered contest: glow halo + trend-coloured dot */}
+              {hp && (
+                <>
+                  <circle cx={hp.x} cy={hp.y} r="11" fill={hpColor} fillOpacity="0.28" />
+                  <circle cx={hp.x} cy={hp.y} r="5.5" fill={hpColor} stroke="#fff" strokeOpacity="0.75" strokeWidth="1.8" />
+                </>
+              )}
+            </svg>
+
+            {(chart.from || chart.to) && (
+              <div className="ct-axis" aria-hidden="true">
+                <span>{chart.from}</span>
+                <span>{chart.to}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {topPercentage !== null && (
+        <div className="ct-right">
+          <div className="ct-label plain">Top</div>
+          <div className="ct-big ct-top">{topPercentage.toFixed(2)}%</div>
+          <div
+            className="ct-hist"
+            role="img"
+            aria-label={`Top ${topPercentage.toFixed(2)}% of contest participants`}
+          >
+            {DIST.map((d, i) => (
+              <i key={i} className={i === hlIndex ? 'on' : ''} style={{ height: `${(d / DIST_MAX) * 100}%` }} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+/* ------------------------------ LeetCode ring ---------------------- */
+const polarToCartesian = (cx, cy, r, angle) => {
+  const rad = ((angle - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+};
+
+// clockwise from a0 to a1 (0 degrees = top)
+const describeArc = (cx, cy, r, a0, a1) => {
+  const s = polarToCartesian(cx, cy, r, a0);
+  const e = polarToCartesian(cx, cy, r, a1);
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${e.x} ${e.y}`;
+};
+
+const START = 225; // bottom-left
+const SWEEP = 270; // open at the bottom
+const GAP = 8;
+const SEG = (SWEEP - GAP * 2) / 3;
+
+// easy/medium/hard: { solved, total } where total may be null if no API supplied it.
+const LeetCodeStats = ({ solved, totalQuestions, easy, medium, hard, extras, contest }) => {
+  const [focused, setFocused] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  const [reduce] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const diff = [
+    { key: 'easy', color: '#1CBABA', label: 'Easy', value: easy },
+    { key: 'medium', color: '#FFB800', label: 'Med.', value: medium },
+    { key: 'hard', color: '#EF4743', label: 'Hard', value: hard },
+  ];
+
+  const active = diff.find((d) => d.key === focused);
+  const center = active
+    ? { n: active.value.solved, t: active.value.total, c: active.color }
+    : { n: solved, t: totalQuestions, c: '#fff' };
+
+  // Only show the details the API actually returned.
+  const stats = [];
+  if (extras) {
+    // Rating and contest count live in the contest panel when it is available.
+    if (!contest && extras.rating !== null) {
+      stats.push({
+        label: 'Contest rating',
+        value: Math.round(extras.rating).toLocaleString('en-US'),
+        sub: extras.peakRating !== null ? `Peak ${Math.round(extras.peakRating).toLocaleString('en-US')}` : null,
+      });
+    }
+    if (!contest && extras.contests !== null) stats.push({ label: 'Contests', value: extras.contests });
+    if (extras.activeDays !== null) stats.push({ label: 'Active days', value: extras.activeDays });
+    if (extras.acceptance !== null) stats.push({ label: 'Acceptance', value: `${extras.acceptance.toFixed(1)}%` });
+    if (extras.badges !== null) stats.push({ label: 'Badges', value: extras.badges });
+    if (extras.ranking !== null && extras.ranking > 0) {
+      stats.push({ label: 'Overall rank', value: extras.ranking.toLocaleString('en-US') });
+    }
+    if (extras.contributionPoints !== null) {
+      stats.push({ label: 'Contribution points', value: extras.contributionPoints.toLocaleString('en-US') });
+    }
+    if (extras.reputation) {
+      stats.push({ label: 'Reputation', value: extras.reputation });
+    }
+  }
+
+  return (
+    <div
+      className="lc"
+      role="group"
+      aria-label={`${solved}${totalQuestions ? ` of ${totalQuestions}` : ''} problems solved: ${easy.solved} easy, ${medium.solved} medium, ${hard.solved} hard.`}
+    >
+      <div className="lc-ring">
+        <svg viewBox="0 0 200 200" width="190" height="190" aria-hidden="true">
+          {diff.map((d, i) => {
+            const s = START + i * (SEG + GAP);
+            const path = describeArc(100, 100, 80, s, s + SEG);
+            // With totals: progress through that difficulty. Without: share of everything solved.
+            const raw = d.value.total ? d.value.solved / d.value.total : solved ? d.value.solved / solved : 0;
+            const p = Math.min(1, Math.max(0, raw));
+            return (
+              <g key={d.key} style={{ opacity: focused && focused !== d.key ? 0.4 : 1, transition: 'opacity 180ms' }}>
+                <path d={path} fill="none" stroke={d.color} strokeOpacity="0.22" strokeWidth="6" strokeLinecap="round" />
+                <path
+                  d={path}
+                  pathLength="1"
+                  fill="none"
+                  stroke={d.color}
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={`${mounted ? p : 0} 1`}
+                  opacity={mounted && p > 0 ? 1 : 0}
+                  style={{ transition: reduce ? 'none' : 'stroke-dasharray 800ms ease-out' }}
+                />
+              </g>
             );
-        }
-        .cp-spotlight.cp-right::after {
-          left: 92%;
-          top: -22%;
-          width: 820px;
-          height: 820px;
-          background:
-            radial-gradient(
-              closest-side at 50% 28%,
-              rgba(224,90,28,0.32) 0%,
-              rgba(224,90,28,0.18) 18%,
-              rgba(224,90,28,0.08) 32%,
-              rgba(255,255,255,0.00) 62%
-            );
-          opacity: 0.85;
-        }
-        .cp-spotlight::before {
-          content: '';
-          position: absolute;
-          left: 6%;
-          top: -36%;
-          width: 1400px;
-          height: 1200px;
-          transform:
-            translateX(-50%)
-            translate(var(--cpSpotShiftX), var(--cpSpotShiftY))
-            rotate(var(--cpSpotRotate))
-            scale(var(--cpSpotScale));
-          background:
-            conic-gradient(
-              from 128deg at 50% 18%,
-              transparent 0deg,
-              rgba(224,90,28,0.00) 18deg,
-              rgba(224,90,28,0.22) 34deg,
-              rgba(224,90,28,0.10) 54deg,
-              rgba(224,90,28,0.00) 74deg,
-              transparent 360deg
-            );
-          filter: blur(10px);
-          mix-blend-mode: screen;
-          transform-origin: 50% 18%;
-          transition: transform 2200ms cubic-bezier(.16,1,.3,1);
-          transition-delay: 120ms;
-        }
-        .cp-spotlight::after {
-          content: '';
-          position: absolute;
-          left: 8%;
-          top: -30%;
-          width: 820px;
-          height: 820px;
-          transform:
-            translateX(-50%)
-            translate(calc(var(--cpSpotShiftX) * 0.7), calc(var(--cpSpotShiftY) * 0.7))
-            rotate(calc(var(--cpSpotRotate) * 0.75))
-            scale(calc(var(--cpSpotScale) * 1.02));
-          background:
-            radial-gradient(
-              closest-side at 50% 28%,
-              rgba(224,90,28,0.32) 0%,
-              rgba(224,90,28,0.18) 18%,
-              rgba(224,90,28,0.08) 32%,
-              rgba(255,255,255,0.00) 62%
-            );
-          filter: blur(18px);
-          opacity: 0.85;
-          transform-origin: 50% 28%;
-          transition: transform 2200ms cubic-bezier(.16,1,.3,1);
-          transition-delay: 120ms;
-        }
+          })}
+        </svg>
 
-        /* subtle sweep after it appears */
-        .cp-spotlight.is-on::before {
-          animation: cpSpotSweep 7.5s ease-in-out infinite;
-          animation-delay: 1800ms;
-        }
-        .cp-spotlight.is-on::after {
-          animation: cpSpotSweep2 7.5s ease-in-out infinite;
-          animation-delay: 1800ms;
-        }
+        <div className="lc-center">
+          <div className="lc-num">
+            <span style={{ color: center.c }}>{center.n}</span>
+            {center.t ? <small>/{center.t}</small> : null}
+          </div>
+          <div className="lc-solved">
+            <span aria-hidden="true">✓</span> Solved
+          </div>
+        </div>
+      </div>
 
-        .cp-spotlight.cp-right.is-on::before {
-          animation-name: cpSpotSweepR;
-        }
-        .cp-spotlight.cp-right.is-on::after {
-          animation-name: cpSpotSweep2R;
-        }
-        @keyframes cpSpotSweep {
-          0%,100% { transform: translateX(-50%) translate(0px, 0px) rotate(0deg) scale(1); }
-          50% { transform: translateX(-50%) translate(14px, 10px) rotate(1.5deg) scale(1.01); }
-        }
-        @keyframes cpSpotSweep2 {
-          0%,100% { transform: translateX(-50%) translate(0px, 0px) rotate(0deg) scale(1.02); }
-          50% { transform: translateX(-50%) translate(10px, 8px) rotate(1deg) scale(1.03); }
-        }
-        @keyframes cpSpotSweepR {
-          0%,100% { transform: translateX(-50%) translate(0px, 0px) rotate(0deg) scale(1); }
-          50% { transform: translateX(-50%) translate(-14px, 10px) rotate(-1.5deg) scale(1.01); }
-        }
-        @keyframes cpSpotSweep2R {
-          0%,100% { transform: translateX(-50%) translate(0px, 0px) rotate(0deg) scale(1.02); }
-          50% { transform: translateX(-50%) translate(-10px, 8px) rotate(-1deg) scale(1.03); }
-        }
+      <div className="lc-tiles">
+        {diff.map((d) => (
+          <div
+            key={d.key}
+            className="lc-tile"
+            tabIndex={0}
+            onMouseEnter={() => setFocused(d.key)}
+            onMouseLeave={() => setFocused(null)}
+            onFocus={() => setFocused(d.key)}
+            onBlur={() => setFocused(null)}
+            style={{ borderColor: focused === d.key ? d.color : undefined }}
+          >
+            <div style={{ color: d.color }} className="lc-tile-label">{d.label}</div>
+            <div className="lc-tile-value">
+              {d.value.total ? `${d.value.solved}/${d.value.total}` : d.value.solved}
+            </div>
+          </div>
+        ))}
+      </div>
 
+      {contest && <ContestPanel contest={contest} />}
+
+      {stats.length > 0 && (
+        <div className="lc-extras">
+          {stats.map((s) => (
+            <div key={s.label} className="lc-stat">
+              <div className="lc-stat-value">{s.value}</div>
+              <div className="lc-stat-label">{s.label}</div>
+              {s.sub && <div className="lc-stat-sub">{s.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ------------------------------ GitHub heatmap --------------------- */
+const GH_API = 'https://github-contributions-api.jogruber.de/v4';
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// days: [{date:'YYYY-MM-DD', count, level}] oldest -> newest. Build Sun..Sat columns.
+const buildWeeks = (days) => {
+  if (!days.length) return [];
+  const pad = new Date(`${days[0].date}T00:00:00Z`).getUTCDay();
+  const cells = [...Array(pad).fill(null), ...days];
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+};
+
+const getStats = (days) => {
+  let total = 0, active = 0, streak = 0, max = 0;
+  for (const d of days) {
+    total += d.count;
+    if (d.count > 0) {
+      active += 1;
+      streak += 1;
+      if (streak > max) max = streak;
+    } else {
+      streak = 0;
+    }
+  }
+  return { total, active, max };
+};
+
+// A label goes on the first week column of each month (skipped if too close to the previous one).
+const getMonthLabels = (weeks) => {
+  const labels = [];
+  let prevMonth = -1;
+  let lastCol = -10;
+  weeks.forEach((week, i) => {
+    const first = week.find(Boolean);
+    if (!first) return;
+    const m = Number(first.date.slice(5, 7)) - 1;
+    if (m !== prevMonth) {
+      if (i - lastCol >= 3) {
+        labels.push({ col: i + 1, text: MONTHS[m] });
+        lastCol = i;
+      }
+      prevMonth = m;
+    }
+  });
+  return labels;
+};
+
+const GitHubHeatmap = ({ username, url, onStatus }) => {
+  const [data, setData] = useState({ status: 'loading', days: [], years: [] });
+  const [selected, setSelected] = useState('current');
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${GH_API}/${username}?y=all`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error('request failed');
+        const json = await res.json();
+        // y=all returns year blocks newest-first, so sort into true date order.
+        const days = [...(json?.contributions ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+        if (!days.length) throw new Error('empty');
+        const years = Object.keys(json.total ?? {}).sort((a, b) => b - a);
+        setData({ status: 'ready', days, years });
+      } catch (err) {
+        if (err.name !== 'AbortError') setData({ status: 'error', days: [], years: [] });
+      }
+    })();
+    return () => ctrl.abort();
+  }, [username]);
+
+  useEffect(() => {
+    if (onStatus) onStatus(data.status);
+  }, [data.status, onStatus]);
+
+  const { weeks, stats, labels } = useMemo(() => {
+    // Local date (not UTC) so today's contributions aren't cut off in your timezone.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // "Current" = the current calendar year, 1 Jan up to today.
+    const year = selected === 'current' ? String(now.getFullYear()) : selected;
+    // Never show future days.
+    const selectedDays = data.days.filter((d) => d.date.startsWith(year) && d.date <= today);
+    const w = buildWeeks(selectedDays);
+    return { weeks: w, stats: getStats(selectedDays), labels: getMonthLabels(w) };
+  }, [data.days, selected]);
+
+  const periodText = selected === 'current' ? `in ${new Date().getFullYear()}` : `in ${selected}`;
+
+  if (data.status === 'loading') return <div className="cp-empty">Loading contributions…</div>;
+
+  if (data.status === 'error') {
+    return (
+      <div className="cp-empty">
+        Contributions are unavailable right now.{' '}
+        <a href={url} target="_blank" rel="noopener noreferrer">View them on GitHub</a>.
+      </div>
+    );
+  }
+
+  return (
+    <div className="ghm">
+      <div className="ghm-top">
+        <div className="ghm-title">
+          <b>{stats.total.toLocaleString()}</b>
+          contributions {periodText}
+        </div>
+
+        <div className="ghm-meta">
+          <span>Total active days: <b>{stats.active}</b></span>
+          <span>Max streak: <b>{stats.max}</b></span>
+          <select
+            className="ghm-select"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            aria-label="Select year"
+          >
+            <option value="current">Current</option>
+            {data.years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="ghm-scroll">
+        <div className="ghm-inner">
+          <div
+            className="ghm-grid"
+            role="img"
+            aria-label={`GitHub contributions: ${stats.total} ${periodText}, ${stats.active} active days, longest streak ${stats.max} days`}
+            style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}
+          >
+            {weeks.flatMap((week, w) =>
+              week.map((day, d) => (
+                <span
+                  key={`${w}-${d}`}
+                  className={`ghm-cell ${day ? 'on' : ''}`}
+                  title={day ? `${day.count} contribution${day.count === 1 ? '' : 's'} on ${day.date}` : undefined}
+                  style={{ background: day ? HEAT[day.level] : 'transparent' }}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="ghm-months" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}>
+            {labels.map((l) => (
+              <span key={`${l.text}-${l.col}`} style={{ gridColumn: l.col }}>{l.text}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ghm-legend" aria-hidden="true">
+        Less {HEAT.map((c) => <i key={c} style={{ background: c }} />)} More
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------ Main component --------------------- */
+const CodingProfiles = () => {
+  const { github, leetcode, gfg } = PROFILE_DATA;
+
+  /* GitHub status (the heatmap fetches its own data) */
+  const [ghStatus, setGhStatus] = useState('loading');
+
+  /* LeetCode: merge whatever each API returns as it arrives */
+  const [lcParts, setLcParts] = useState({ counts: null, totals: null, extras: null });
+  const [lcDone, setLcDone] = useState(false);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    let pending = LC_URLS.length;
+
+    LC_URLS.forEach(async (buildUrl) => {
+      try {
+        const part = parseLeetCode(await fetchJson(buildUrl(leetcode.username), ctrl.signal));
+        if (part) {
+          setLcParts((prev) => ({
+            counts: prev.counts ?? part.counts,
+            totals: prev.totals ?? part.totals,
+            extras: mergeExtras(prev.extras, part.extras),
+          }));
+        }
+      } catch (err) {
+        /* a failing source is fine; the others may still answer */
+      } finally {
+        pending -= 1;
+        if (pending === 0 && !ctrl.signal.aborted) setLcDone(true);
+      }
+    });
+
+    return () => ctrl.abort();
+  }, [leetcode.username]);
+
+  const lcStatus = lcParts.counts ? 'ready' : lcDone ? 'error' : 'loading';
+
+  const lcView = useMemo(() => {
+    const { counts, totals, extras } = lcParts;
+    if (!counts) return null;
+    return {
+      extras,
+      solved: counts.solved,
+      totalQuestions: totals?.all ?? null,
+      easy: { solved: counts.easy, total: totals?.easy ?? null },
+      medium: { solved: counts.medium, total: totals?.medium ?? null },
+      hard: { solved: counts.hard, total: totals?.hard ?? null },
+    };
+  }, [lcParts]);
+
+  /* LeetCode contest ranking + history (optional extra; the card works without it) */
+  const [contestData, setContestData] = useState(null);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchJson(LC_CONTEST_URL(leetcode.username), ctrl.signal)
+      .then((json) => {
+        const parsed = parseContest(json);
+        if (parsed && !ctrl.signal.aborted) setContestData(parsed);
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [leetcode.username]);
+
+  // Prefer the contest API; fall back to the rating fields from the stats API.
+  const contest = useMemo(() => {
+    const ex = lcParts.extras;
+    const rating = contestData?.rating ?? ex?.rating ?? null;
+    if (rating === null) return null;
+    return {
+      rating,
+      attended: contestData?.attended ?? ex?.contests ?? null,
+      globalRanking: contestData?.globalRanking ?? null,
+      totalParticipants: contestData?.totalParticipants ?? null,
+      topPercentage: contestData?.topPercentage ?? null,
+      points: contestData?.points ?? [],
+    };
+  }, [contestData, lcParts.extras]);
+
+  /* GeeksforGeeks: first API to return usable data wins */
+  const [gfgData, setGfgData] = useState({ status: 'loading' });
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+
+    Promise.any(
+      GFG_URLS.map(async (buildUrl) => {
+        const parsed = parseGfg(await fetchJson(buildUrl(gfg.username), ctrl.signal));
+        if (!parsed) throw new Error('unusable response');
+        return parsed;
+      })
+    )
+      .then((parsed) => {
+        if (!ctrl.signal.aborted) setGfgData({ status: 'ready', ...parsed });
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) setGfgData({ status: 'error' });
+      });
+
+    return () => ctrl.abort();
+  }, [gfg.username]);
+
+  const ghUrl = github.url;
+  const lcUrl = `https://leetcode.com/u/${leetcode.username}/`;
+  const gfgUrl = `https://www.geeksforgeeks.org/user/${gfg.username}/`;
+
+  const Status = ({ state }) => (
+    <span className={`cp-status ${state === 'ready' ? 'live' : ''}`}>
+      {state === 'ready' && <span className="cp-dot" aria-hidden="true" />}
+      {state === 'ready' ? 'Live' : state === 'loading' ? 'Loading' : 'Unavailable'}
+    </span>
+  );
+
+  return (
+    <section id="coding-profiles" className="cp-section">
+      <style>{`
+        .cp-section { position: relative; background: #050505; padding: 7rem 1.25rem 5rem; overflow: hidden; font-family: 'Manrope', system-ui, sans-serif; }
+        .cp-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 62% 35%, rgba(224,90,28,0.18), transparent 32%); }
+        .cp-shell { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+
+        .cp-header { text-align: center; margin-bottom: 2.4rem; }
+        .cp-title { margin: 0 0 0.9rem; font-size: clamp(2.5rem, 5vw, 4rem); line-height: 1.05; letter-spacing: -0.04em; color: #fff; font-family: 'Neue Machina', 'Manrope', sans-serif; }
+        .cp-title span { color: #e05a1c; }
+        .cp-sub { margin: 0 auto 1.2rem; max-width: 52ch; color: #b8b8b8; font-size: 1rem; line-height: 1.6; }
+        .cp-divider { width: 56px; height: 3px; margin: 0 auto; background: #e05a1c; border-radius: 999px; }
+
+        .cp-dashboard { border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; background: rgba(14,14,14,0.92); box-shadow: 0 35px 80px rgba(0,0,0,0.48); overflow: hidden; }
+        .cp-dash-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.7); }
+        .cp-dash-head::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #f97316; box-shadow: 0 0 12px rgba(249,115,22,0.7); }
+
+        .cp-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; padding: 1rem; }
+        .cp-panel { border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; background: rgba(255,255,255,0.02); padding: 1.1rem; min-width: 0; transition: border-color 180ms ease, box-shadow 180ms ease; }
+        .cp-panel:hover, .cp-panel:focus-within { border-color: rgba(224,90,28,0.5); box-shadow: 0 18px 42px rgba(224,90,28,0.14); }
+        .cp-panel.wide { grid-column: span 2; }
+
+        .cp-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-bottom: 1.1rem; }
+        .cp-link { display: inline-flex; align-items: center; gap: 0.7rem; text-decoration: none; color: #fff; border-radius: 10px; }
+        .cp-link:focus-visible { outline: 2px solid #e05a1c; outline-offset: 4px; }
+        .cp-badge { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 0.72rem; font-weight: 700; border: 1px solid; }
+        .cp-name { font-weight: 700; font-size: 0.95rem; }
+        .cp-handle { display: block; font-size: 0.75rem; color: #a8a8a8; font-weight: 500; }
+        .cp-arrow { color: #a8a8a8; margin-left: 0.15rem; }
+        .cp-link:hover .cp-arrow { color: #e05a1c; }
+
+        .cp-status { display: inline-flex; align-items: center; gap: 0.45rem; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #b8b8b8; padding: 0.28rem 0.65rem; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+        .cp-status.live { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.25); color: #4ade80; }
+        .cp-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 10px rgba(74,222,128,0.7); }
+
+        .cp-metric { display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .cp-big { font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1; color: #fff; font-family: 'Neue Machina', 'Manrope', sans-serif; letter-spacing: -0.04em; }
+        .cp-label { margin-top: 0.35rem; font-size: 0.78rem; color: #b8b8b8; }
+
+        .cp-empty { padding: 2.2rem 1rem; text-align: center; color: #b8b8b8; font-size: 0.9rem; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; }
+        .cp-empty a { color: #e05a1c; }
+
+        /* GitHub heatmap */
+        .ghm { color: #fff; font-variant-numeric: tabular-nums; }
+        .ghm-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem 1.5rem; margin-bottom: 1rem; }
+        .ghm-title { font-size: 0.95rem; color: #b8b8b8; }
+        .ghm-title b { font-size: 1.5rem; color: #fff; margin-right: 0.35rem; font-family: 'Neue Machina', 'Manrope', sans-serif; letter-spacing: -0.03em; }
+        .ghm-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem 1.3rem; font-size: 0.8rem; color: #a8a8a8; }
+        .ghm-meta b { color: #fff; }
+        .ghm-select { appearance: none; background: rgba(255,255,255,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b8b8b8' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.65rem center; color: #fff; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 0.45rem 2rem 0.45rem 0.8rem; font: inherit; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+        .ghm-select:hover { border-color: rgba(224,90,28,0.5); }
+        .ghm-select:focus-visible { outline: 2px solid #e05a1c; outline-offset: 2px; }
+        .ghm-select option { background: #1a1a1a; color: #fff; }
+
+        .ghm-scroll { overflow-x: auto; padding-bottom: 6px; }
+        .ghm-inner { min-width: 680px; }
+        .ghm-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 3px; align-items: stretch; }
+        .ghm-cell { aspect-ratio: 1; border-radius: 3px; min-width: 0; border: 1px solid rgba(255,255,255,0.02); }
+        .ghm-cell.on:hover { outline: 1px solid rgba(255,255,255,0.7); }
+        .ghm-months { display: grid; gap: 3px; margin-top: 8px; font-size: 0.72rem; color: #a8a8a8; height: 1rem; }
+        .ghm-months span { white-space: nowrap; }
+        .ghm-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 0.4rem; font-size: 0.7rem; color: #a8a8a8; }
+        .ghm-legend i { width: 11px; height: 11px; border-radius: 3px; display: block; }
+
+        /* LeetCode widget */
+        .lc { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 18px 20px; color: #fff; font-variant-numeric: tabular-nums; }
+        .lc-ring { position: relative; width: 190px; height: 190px; flex: 0 0 auto; filter: drop-shadow(0 0 20px rgba(245,166,35,0.07)); }
+        .lc-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 10px; }
+        .lc-num { display: flex; align-items: baseline; gap: 3px; line-height: 1; }
+        .lc-num span { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; }
+        .lc-num small { font-size: 15px; color: #9a9a9a; }
+        .lc-solved { margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
+        .lc-solved span { color: #2CBB5D; }
+        .lc-tiles { display: flex; flex-direction: column; gap: 10px; flex: 1 1 150px; min-width: 150px; max-width: 260px; }
+        .lc-tile { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); border-radius: 10px; padding: 11px 16px; text-align: left; border: 1px solid rgba(255,255,255,0.06); transition: border-color 180ms, transform 180ms ease; }
+        .lc-tile:hover { transform: translateY(-1px); }
+        .lc-tile:focus-visible { outline: 2px solid #e05a1c; outline-offset: 2px; }
+        .lc-tile-label { font-weight: 600; font-size: 14px; }
+        .lc-tile-value { font-weight: 700; font-size: 15px; margin-top: 5px; }
+        .lc-extras { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 6px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .lc-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 12px; text-align: center; min-width: 0; }
+        .lc-stat-value { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+        .lc-stat-label { margin-top: 3px; font-size: 0.72rem; color: #a8a8a8; }
+        .lc-stat-sub { margin-top: 2px; font-size: 0.68rem; color: #8a8a8a; }
+
+        .cp-chip { display: inline-block; border-radius: 999px; border: 1px solid rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); color: #6ee7b7; padding: 0.3rem 0.7rem; font-size: 0.75rem; font-weight: 600; }
+
+        @media (max-width: 820px) {
+          .cp-grid { grid-template-columns: 1fr; }
+          .cp-panel.wide { grid-column: span 1; }
+          .lc { justify-content: center; }
+          .lc-tiles { max-width: 100%; width: 100%; }
+        }
         @media (prefers-reduced-motion: reduce) {
-          .cp-spotlight,
-          .cp-spotlight::before,
-          .cp-spotlight::after {
-            transition: none !important;
-            animation: none !important;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .cp-spotlight::before {
-            left: 0%;
-            width: 980px;
-            height: 900px;
-            top: -38%;
-            filter: blur(12px);
-            opacity: 0.95;
-          }
-          .cp-spotlight::after {
-            left: 2%;
-            width: 660px;
-            height: 660px;
-            top: -34%;
-          }
-
-          .cp-spotlight.cp-right::before {
-            left: 100%;
-            width: 980px;
-            height: 900px;
-            top: -32%;
-          }
-          .cp-spotlight.cp-right::after {
-            left: 98%;
-            width: 660px;
-            height: 660px;
-            top: -28%;
-          }
-        }
-
-        /* Layout */
-        .cp-inner {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 4px;
-          position: relative;
-          z-index: 1;
-        }
-
-        /* About-style header */
-        .cp-header {
-          text-align: center;
-          margin-bottom: 3.6rem;
-        }
-        .cp-eyebrow {
-          font-size: 0.7rem;
-          font-family: 'Manrope', sans-serif;
-          font-weight: 600;
-          letter-spacing: 0.24em;
-          text-transform: uppercase;
-          color: #e05a1c;
-          margin-bottom: 1rem;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        .cp-eyebrow::before,
-        .cp-eyebrow::after {
-          content: '';
-          display: inline-block;
-          width: 28px;
-          height: 1px;
-          background: #e05a1c;
-          opacity: 0.55;
-        }
-        .cp-heading {
-          font-size: clamp(2.6rem, 5vw, 3.9rem);
-          font-weight: 400;
-          color: #fff;
-          font-family: 'Neue Machina', sans-serif;
-          letter-spacing: -0.02em;
-          line-height: 1.06;
-          margin: 0;
-        }
-        .cp-heading span { color: #e05a1c; }
-        .cp-divider {
-          margin: 1rem auto 0;
-          width: 44px;
-          height: 2px;
-          background: linear-gradient(90deg, #e05a1c 0%, transparent 100%);
-          border-radius: 2px;
-        }
-        .cp-sub {
-          margin-top: 1rem;
-          font-size: 0.95rem;
-          font-family: 'Manrope', sans-serif;
-          color: rgba(255,255,255,0.55);
-          line-height: 1.8;
-        }
-
-        /* Cards */
-        .cp-card {
-          position: relative;
-          background: rgba(10,10,10,0.82);
-          border: 1px solid rgba(255,255,255,0.10);
-          border-radius: 22px;
-          overflow: hidden;
-          box-shadow: 0 20px 65px rgba(0,0,0,0.55);
-          transform: translateY(0);
-          transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-        }
-        .cp-card::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(1000px 420px at 20% 0%, rgba(255,255,255,0.08), transparent 55%);
-          opacity: 0.7;
-          pointer-events: none;
-        }
-        .group:hover .cp-card { transform: translateY(-8px); }
-        .cp-card-content { position: relative; }
-        .cp-logo {
-          width: 72px;
-          height: 72px;
-          border-radius: 9999px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-sizing: border-box;
-          padding: 10px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.10);
-          overflow: hidden;
-        }
-        .cp-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          padding: 10px 14px;
-          border-radius: 12px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-        .cp-title {
-          font-family: 'Neue Machina', sans-serif;
-          font-weight: 400;
-          letter-spacing: -0.01em;
-        }
-        .cp-desc {
-          font-family: 'Manrope', sans-serif;
-          color: rgba(255,255,255,0.58);
-        }
-        .cp-cta {
-          border-radius: 14px;
-          border: 1px solid rgba(255,255,255,0.10);
-          background: rgba(255,255,255,0.04);
-          transition: transform 220ms ease, background 220ms ease, border-color 220ms ease;
-        }
-        .group:hover .cp-cta {
-          transform: translateY(-1px);
-          border-color: rgba(255,255,255,0.18);
-        }
-        .cp-footer {
-          width: 100%;
-          margin-top: 16px;
-        }
-        .cp-cta {
-          height: 46px;
-        }
-
-        /* Stats banner */
-        .cp-banner {
-          margin-top: 3rem;
-          border-radius: 22px;
-          border: 1px solid rgba(255,255,255,0.10);
-          background: rgba(255,255,255,0.03);
-          overflow: hidden;
-        }
-        .cp-banner-topstrip {
-          height: 2px;
-          background: linear-gradient(90deg, #e05a1c 0%, rgba(224,90,28,0.15) 45%, transparent 100%);
-        }
-        .cp-stat-num {
-          font-family: 'Neue Machina', sans-serif;
-          font-weight: 400;
-          letter-spacing: -0.01em;
-          color: #e05a1c;
+          .cp-panel { transition: none; }
         }
       `}</style>
 
-      <div className={`cp-spotlight cp-left ${spotlightOn ? 'is-on' : ''}`} aria-hidden="true" />
-      <div className={`cp-spotlight cp-right ${spotlightOn ? 'is-on' : ''}`} aria-hidden="true" />
       <div className="cp-glow" aria-hidden="true" />
 
-      <div className="cp-inner">
-        {/* Header */}
+      <div className="cp-shell">
         <div className="cp-header">
-          <div className="cp-eyebrow">Competitive Profiles</div>
-          <h2 className="cp-heading">Coding <span>Profiles</span></h2>
+          <h2 className="cp-title">Coding <span>Profiles</span></h2>
+          <p className="cp-sub">Where I practice DSA and ship code.</p>
           <div className="cp-divider" />
-          <p className="cp-sub">Explore my competitive programming journey across multiple platforms.</p>
         </div>
 
-        {/* Profile Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10 md:mb-14">
-          {profiles.map((profile) => (
-            <a
-              key={profile.id}
-              href={profile.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={() => setHoveredCard(profile.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-              className="group relative block w-full max-w-[420px] mx-auto md:max-w-none"
-            >
-              {/* Card Container */}
-              <div
-                className="cp-card"
-                style={{
-                  borderColor:
-                    hoveredCard === profile.id
-                      ? "rgba(224,90,28,0.55)"
-                      : "rgba(255,255,255,0.10)",
-                  boxShadow:
-                    hoveredCard === profile.id
-                      ? "0 28px 90px rgba(224,90,28,0.18)"
-                      : "0 20px 65px rgba(0,0,0,0.55)",
-                }}
-              >
-                
-                {/* Gradient Background */}
-                <div className={`absolute inset-0 bg-linear-to-br ${profile.bgGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                
-                {/* Content */}
-                <div className="cp-card-content p-7 md:p-8 flex flex-col items-center text-center gap-3">
-                  {/* Logo */}
-                  <div className="mt-1">
-                    <div
-                      className={`cp-logo transition-all duration-500 ${hoveredCard === profile.id ? 'scale-110 rotate-2' : 'scale-100'}`}
-                      style={{
-                        borderColor: hoveredCard === profile.id ? profile.color : 'rgba(255,255,255,0.10)'
-                      }}
-                    >
-                      {profile.id === 'github' ? (
-                        <FontAwesomeIcon 
-                          icon={faGithub} 
-                          className="text-3xl leading-none"
-                          style={{ color: profile.color }}
-                        />
-                      ) : (
-                        <img 
-                          src={profile.logo} 
-                          alt={profile.name}
-                          className="w-12 h-12 object-contain"
-                          style={{
-                            filter: profile.id === 'leetcode' ? 'brightness(0) invert(1)' : 'none'
-                          }}
-                        />
-                      )}
-                    </div>
-                  </div>
+        <div className="cp-dashboard">
+          <div className="cp-dash-head">Coding activity</div>
 
-                  {/* Platform Name */}
-                  <h3 className="cp-title text-2xl text-white">
-                    {profile.name}
-                  </h3>
-
-                  {/* Username */}
-                  <div>
-                    <span className="cp-chip">
-                      <span className="text-gray-500 font-mono text-sm">@</span>
-                      <span 
-                        className="font-mono text-sm font-bold"
-                        style={{ color: profile.color }}
-                      >
-                        {profile.username}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* Description */}
-                  <p className="cp-desc text-sm">
-                    {profile.description}
-                  </p>
-
-                  {/* Badge */}
-                  <div className="flex items-center justify-center gap-2">
-                    <div 
-                      className="px-3 py-1 rounded-full text-xs font-bold font-mono"
-                      style={{
-                        backgroundColor: `${profile.color}20`,
-                        color: profile.color,
-                        border: `1px solid ${profile.color}40`
-                      }}
-                    >
-                      <FontAwesomeIcon icon={profile.stats.icon} className="mr-2" />
-                      {profile.badge}
-                    </div>
-                  </div>
-
-                  {/* Visit Button */}
-                  <div className="cp-footer">
-                    <div
-                      className="cp-cta w-full inline-flex items-center justify-center gap-2 px-6 font-mono text-sm font-bold transition-all duration-300"
-                      style={{
-                        backgroundColor: hoveredCard === profile.id ? profile.color : 'rgba(255,255,255,0.05)',
-                        color: hoveredCard === profile.id ? '#000' : '#fff',
-                        border: `2px solid ${hoveredCard === profile.id ? profile.color : 'rgba(255,255,255,0.1)'}`
-                      }}
-                    >
-                      <span>Visit Profile</span>
-                      <span className="text-lg transition-transform duration-300 group-hover:translate-x-1">→</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hover Effect Corner Accent */}
-                <div 
-                  className={`
-                    absolute top-0 right-0 w-32 h-32 rounded-bl-full
-                    transition-opacity duration-500
-                    ${hoveredCard === profile.id ? 'opacity-20' : 'opacity-0'}
-                  `}
-                  style={{ backgroundColor: profile.color }}
-                ></div>
+          <div className="cp-grid">
+            {/* GitHub */}
+            <article className="cp-panel wide">
+              <div className="cp-panel-head">
+                <a className="cp-link" href={ghUrl} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile">
+                  <span className="cp-badge" style={{ color: '#f97316', background: 'rgba(249,115,22,0.1)', borderColor: 'rgba(249,115,22,0.4)' }}>GH</span>
+                  <span>
+                    <span className="cp-name">GitHub <span className="cp-arrow" aria-hidden="true">↗</span></span>
+                    <span className="cp-handle">@{github.username}</span>
+                  </span>
+                </a>
+                <Status state={ghStatus} />
               </div>
-            </a>
-          ))}
-        </div>
 
-        {/* Bottom Stats Banner */}
-        <div className="cp-banner">
-          <div className="cp-banner-topstrip" />
-          <div className="p-6 md:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-7 md:gap-6 text-center">
-            <div>
-              <div className="cp-stat-num text-3xl mb-2">500+</div>
-              <div className="text-gray-400 font-mono text-sm">Problems Solved</div>
-            </div>
-            <div>
-              <div className="cp-stat-num text-3xl mb-2">DSA</div>
-              <div className="text-gray-400 font-mono text-sm">Data Structures &amp; Algorithms</div>
-            </div>
-            <div>
-              <div className="cp-stat-num text-3xl mb-2">Active</div>
-              <div className="text-gray-400 font-mono text-sm">Daily Practice</div>
-            </div>
-            </div>
+              <GitHubHeatmap username={github.username} url={ghUrl} onStatus={setGhStatus} />
+            </article>
+
+            {/* LeetCode */}
+            <article className="cp-panel wide">
+              <div className="cp-panel-head">
+                <a className="cp-link" href={lcUrl} target="_blank" rel="noopener noreferrer" aria-label="Open LeetCode profile">
+                  <span className="cp-badge" style={{ color: '#f5a623', background: 'rgba(245,166,35,0.1)', borderColor: 'rgba(245,166,35,0.4)' }}>LC</span>
+                  <span>
+                    <span className="cp-name">LeetCode <span className="cp-arrow" aria-hidden="true">↗</span></span>
+                    <span className="cp-handle">@{leetcode.username}</span>
+                  </span>
+                </a>
+                <Status state={lcStatus} />
+              </div>
+
+              {lcStatus === 'ready' && <LeetCodeStats {...lcView} contest={contest} />}
+              {lcStatus === 'loading' && <div className="cp-empty">Loading LeetCode stats…</div>}
+              {lcStatus === 'error' && (
+                <div className="cp-empty">
+                  Stats are unavailable right now.{' '}
+                  <a href={lcUrl} target="_blank" rel="noopener noreferrer">View them on LeetCode</a>.
+                </div>
+              )}
+            </article>
+
+            {/* GeeksforGeeks */}
+            <article className="cp-panel wide">
+              <div className="cp-panel-head">
+                <a className="cp-link" href={gfgUrl} target="_blank" rel="noopener noreferrer" aria-label="Open GeeksforGeeks profile">
+                  <span className="cp-badge" style={{ color: '#34d399', background: 'rgba(52,211,153,0.1)', borderColor: 'rgba(52,211,153,0.4)' }}>GfG</span>
+                  <span>
+                    <span className="cp-name">GeeksforGeeks <span className="cp-arrow" aria-hidden="true">↗</span></span>
+                    <span className="cp-handle">@{gfg.username}</span>
+                  </span>
+                </a>
+                <Status state={gfgData.status} />
+              </div>
+
+              {gfgData.status === 'ready' && (
+                <>
+                  <div className="cp-metric">
+                    <div>
+                      <div className="cp-big">{gfgData.solved}</div>
+                      <div className="cp-label">problems solved</div>
+                    </div>
+                    {gfgData.score !== null && (
+                      <div>
+                        <div className="cp-big">{gfgData.score}</div>
+                        <div className="cp-label">coding score</div>
+                      </div>
+                    )}
+                  </div>
+                  {gfgData.streak > 0 && <span className="cp-chip">{gfgData.streak}-day streak</span>}
+                </>
+              )}
+              {gfgData.status === 'loading' && <div className="cp-empty">Loading GeeksforGeeks stats…</div>}
+              {gfgData.status === 'error' && (
+                <div className="cp-empty">
+                  Stats are unavailable right now.{' '}
+                  <a href={gfgUrl} target="_blank" rel="noopener noreferrer">View them on GeeksforGeeks</a>.
+                </div>
+              )}
+            </article>
           </div>
         </div>
       </div>
