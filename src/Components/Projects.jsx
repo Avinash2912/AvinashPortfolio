@@ -89,7 +89,7 @@ export const Projects = () => {
   const hasMoreProjects = displayCount < projects.length;
 
   return (
-    <section id="projects" className="relative min-h-screen bg-[#080b10] py-20 px-4 md:px-8 text-slate-100 font-mono selection:bg-[#2496ed] selection:text-black">
+    <section id="projects" className="relative bg-[#080b10] py-12 md:py-16 px-4 md:px-8 text-slate-100 font-mono selection:bg-[#2496ed] selection:text-black">
       {/* Structural Subtle Cyber Grid Overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
 

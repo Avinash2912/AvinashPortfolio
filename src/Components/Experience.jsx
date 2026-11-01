@@ -46,8 +46,8 @@ export const Experience = () => {
       ref={sectionRef}
       style={{
         position: 'relative',
-        minHeight: '100vh',
-        padding: '8rem 2rem',
+        minHeight: 'auto',
+        padding: '4.5rem 2rem 3rem',
         overflow: 'hidden',
         background: '#000',
         fontFamily: "'Manrope', sans-serif",

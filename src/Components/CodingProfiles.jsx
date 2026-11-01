@@ -1804,7 +1804,7 @@ const CodingProfiles = () => {
   return (
     <section id="coding-profiles" className="cp-section">
       <style>{`
-        .cp-section { position: relative; background: #050505; padding: 7rem 1.25rem 5rem; overflow: hidden; font-family: 'Manrope', system-ui, sans-serif; }
+        .cp-section { position: relative; background: #050505; padding: 4.5rem 1.25rem 3rem; overflow: hidden; font-family: 'Manrope', system-ui, sans-serif; }
         .cp-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 62% 35%, rgba(224,90,28,0.18), transparent 32%); }
         .cp-shell { max-width: 1480px; margin: 0 auto; position: relative; z-index: 1; }
 

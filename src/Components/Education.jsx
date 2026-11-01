@@ -187,10 +187,10 @@ export default function Education() {
       ref={sectionRef}
       style={{
         position: "relative",
-        minHeight: "100vh",
+        minHeight: "auto",
         overflow: "hidden",
         background: "#000",
-        padding: "8rem 2rem",
+        padding: "4.5rem 2rem 3rem",
       }}
     >
       <style>{`
