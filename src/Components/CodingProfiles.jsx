@@ -1390,16 +1390,39 @@ const GfgHeatmap = ({ days }) => {
 const GfgDifficulty = ({ solved, tiles, diffs, institute, problems = [] }) => {
   const [focused, setFocused] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
-  const selectedMeta = GFG_DIFF_META.find((m) => m.key === selectedDifficulty) ?? null;
-  const selectedProblems = selectedDifficulty
-    ? problems.filter((problem) => problem.difficulty === selectedDifficulty)
-    : [];
+  const [problemSearch, setProblemSearch] = useState('');
   const [mounted, setMounted] = useState(false);
+
+  const selectedMeta = GFG_DIFF_META.find((m) => m.key === selectedDifficulty) ?? null;
+  const normalizedSearch = problemSearch.trim().toLowerCase();
+  const filteredProblems = problems.filter((problem) => {
+    const matchesDifficulty = selectedDifficulty === 'all' || problem.difficulty === selectedDifficulty;
+    const matchesSearch = !normalizedSearch || problem.question.toLowerCase().includes(normalizedSearch);
+    return matchesDifficulty && matchesSearch;
+  });
+
+  const openProblems = (difficulty) => {
+    setSelectedDifficulty(difficulty);
+    setProblemSearch('');
+  };
+  const closeProblems = () => {
+    setSelectedDifficulty(null);
+    setProblemSearch('');
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!selectedDifficulty) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') closeProblems();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedDifficulty]);
 
   const total = tiles.reduce((s, m) => s + diffs[m.key], 0);
   const segs = tiles.filter((m) => diffs[m.key] > 0);
@@ -1417,6 +1440,8 @@ const GfgDifficulty = ({ solved, tiles, diffs, institute, problems = [] }) => {
   const active = tiles.find((m) => m.key === focused);
   const centerN = active ? diffs[active.key] : solved;
   const centerColor = active ? active.color : '#fff';
+  const modalTitle = selectedDifficulty === 'all' ? 'All problems' : selectedMeta?.label;
+  const modalColor = selectedMeta?.color ?? '#ff7840';
 
   return (
     <div>
@@ -1442,12 +1467,8 @@ const GfgDifficulty = ({ solved, tiles, diffs, institute, problems = [] }) => {
             ))}
           </svg>
           <div className="lc-center">
-            <div className="lc-num">
-              <span style={{ color: centerColor }}>{centerN}</span>
-            </div>
-            <div className="lc-solved">
-              <span aria-hidden="true">✓</span> Solved
-            </div>
+            <div className="lc-num"><span style={{ color: centerColor }}>{centerN}</span></div>
+            <div className="lc-solved"><span aria-hidden="true">✓</span> Solved</div>
           </div>
         </div>
 
@@ -1457,8 +1478,7 @@ const GfgDifficulty = ({ solved, tiles, diffs, institute, problems = [] }) => {
               type="button"
               key={m.key}
               className="gf-tile gf-tile-button"
-              tabIndex={0}
-              onClick={() => setSelectedDifficulty(m.key)}
+              onClick={() => openProblems(m.key)}
               aria-label={`View ${diffs[m.key]} ${m.label} solved problems`}
               onMouseEnter={() => setFocused(m.key)}
               onMouseLeave={() => setFocused(null)}
@@ -1473,30 +1493,71 @@ const GfgDifficulty = ({ solved, tiles, diffs, institute, problems = [] }) => {
               </div>
             </button>
           ))}
+          <button type="button" className="gf-view-all" onClick={() => openProblems('all')}>
+            <span>Browse all problems</span><span aria-hidden="true">↗</span>
+          </button>
         </div>
       </div>
 
-      {selectedMeta && (
-        <div className="gf-modal-backdrop" role="presentation" onClick={() => setSelectedDifficulty(null)}>
-          <div className="gf-modal" role="dialog" aria-modal="true" aria-labelledby="gf-modal-title" onClick={(e) => e.stopPropagation()}>
+      {selectedDifficulty && (
+        <div className="gf-modal-backdrop" role="presentation" onClick={closeProblems}>
+          <section className="gf-modal" role="dialog" aria-modal="true" aria-labelledby="gf-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="gf-modal-head">
-              <div>
+              <div className="gf-modal-heading">
                 <div className="gf-modal-kicker">GeeksforGeeks · Solved problems</div>
-                <h3 id="gf-modal-title" style={{ color: selectedMeta.color }}>{selectedMeta.label}</h3>
-                <p>{selectedProblems.length} problems solved</p>
+                <h3 id="gf-modal-title" style={{ color: modalColor }}>{modalTitle}</h3>
+                <p>{filteredProblems.length} of {problems.length} problems</p>
               </div>
-              <button type="button" className="gf-modal-close" onClick={() => setSelectedDifficulty(null)} aria-label="Close">×</button>
+              <button type="button" className="gf-modal-close" onClick={closeProblems} aria-label="Close">×</button>
             </div>
+
+            <div className="gf-modal-tools">
+              <label className="gf-search-wrap">
+                <span className="gf-search-icon" aria-hidden="true">⌕</span>
+                <input
+                  type="search"
+                  className="gf-problem-search"
+                  placeholder="Search solved problems..."
+                  value={problemSearch}
+                  onChange={(e) => setProblemSearch(e.target.value)}
+                  aria-label="Search solved problems"
+                />
+                {problemSearch && (
+                  <button type="button" className="gf-search-clear" onClick={() => setProblemSearch('')} aria-label="Clear search">×</button>
+                )}
+              </label>
+              <label className="gf-filter-wrap">
+                <span>Difficulty</span>
+                <select
+                  className="gf-difficulty-filter"
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                  aria-label="Filter problems by difficulty"
+                >
+                  <option value="all">All difficulties</option>
+                  {GFG_DIFF_META.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                </select>
+              </label>
+            </div>
+
             <div className="gf-modal-list">
-              {selectedProblems.length ? selectedProblems.map((problem, index) => (
+              {filteredProblems.length ? filteredProblems.map((problem, index) => (
                 <a className="gf-modal-problem" href={getGfgQuestionUrl(problem)} target="_blank" rel="noreferrer" key={`${problem.slug || problem.question}-${index}`}>
                   <span className="gf-modal-index">{String(index + 1).padStart(2, '0')}</span>
-                  <span>{problem.question}</span>
+                  <span className="gf-problem-title">{problem.question}</span>
                   <span className="gf-modal-arrow">↗</span>
                 </a>
-              )) : <div className="gf-modal-empty">No problem details available for this difficulty.</div>}
+              )) : (
+                <div className="gf-modal-empty">
+                  <span className="gf-empty-icon" aria-hidden="true">⌕</span>
+                  <strong>{problemSearch ? 'No matching problems' : 'No problems found'}</strong>
+                  <span>{problemSearch ? 'Try another problem name or change the difficulty filter.' : 'There are no solved problems in this difficulty yet.'}</span>
+                  {problemSearch && <button type="button" onClick={() => setProblemSearch('')}>Clear search</button>}
+                </div>
+              )}
             </div>
-          </div>
+            <div className="gf-modal-foot">Select a problem to open it on GeeksforGeeks <span aria-hidden="true">↗</span></div>
+          </section>
         </div>
       )}
     </div>
@@ -1886,19 +1947,50 @@ const CodingProfiles = () => {
         .gf-tile-button:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
         .gf-tile-button:focus-visible { outline: 2px solid #e05a1c; outline-offset: 3px; }
         .gf-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,0.78); backdrop-filter: blur(8px); }
-        .gf-modal { width: min(620px, 100%); max-height: min(78vh, 760px); display: flex; flex-direction: column; overflow: hidden; background: #101010; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,0.55); }
-        .gf-modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        .gf-modal-kicker { color: #999; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-        .gf-modal-head h3 { margin: 5px 0 2px; font-size: 22px; }
-        .gf-modal-head p { margin: 0; color: #999; font-size: 12px; }
-        .gf-modal-close { border: 0; background: rgba(255,255,255,0.08); color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 22px; cursor: pointer; }
-        .gf-modal-list { padding: 8px 18px 18px; overflow-y: auto; }
-        .gf-modal-problem { display: grid; grid-template-columns: 34px 1fr 18px; gap: 12px; align-items: center; padding: 12px 8px; color: #e5e5e5; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; }
-        .gf-modal-problem:hover { color: #fff; background: rgba(255,255,255,0.04); }
-        .gf-modal-index { color: #777; font-size: 11px; font-variant-numeric: tabular-nums; }
-        .gf-modal-arrow { color: #e05a1c; }
-        .gf-modal-empty { padding: 24px 8px; color: #999; text-align: center; font-size: 13px; }
-        @media (max-width: 600px) { .gf-modal-backdrop { padding: 10px; } .gf-modal-head { padding: 18px 16px 14px; } .gf-modal-list { padding: 6px 12px 14px; } }
+        .gf-modal { width: min(680px, 100%); max-height: min(82vh, 780px); display: flex; flex-direction: column; overflow: hidden; background: #101010; border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; box-shadow: 0 28px 90px rgba(0,0,0,0.62); }
+        .gf-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(135deg, rgba(255,255,255,0.025), transparent 70%); }
+        .gf-modal-heading { min-width: 0; }
+        .gf-modal-kicker { color: #888; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+        .gf-modal-head h3 { margin: 6px 0 3px; font-size: 22px; letter-spacing: -0.03em; }
+        .gf-modal-head p { margin: 0; color: #858585; font-size: 12px; }
+        .gf-modal-close { display: grid; place-items: center; flex: 0 0 auto; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.08); color: #ddd; width: 34px; height: 34px; border-radius: 50%; font-size: 22px; line-height: 1; cursor: pointer; transition: .18s ease; }
+        .gf-modal-close:hover { color: #fff; background: rgba(224,90,28,0.18); border-color: rgba(224,90,28,0.35); }
+        .gf-modal-tools { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) 174px; gap: 10px; padding: 14px 24px; background: rgba(16,16,16,0.97); border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .gf-search-wrap { display: flex; align-items: center; gap: 9px; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: #191919; transition: border-color .18s, box-shadow .18s; }
+        .gf-search-wrap:focus-within { border-color: rgba(224,90,28,0.7); box-shadow: 0 0 0 3px rgba(224,90,28,0.1); }
+        .gf-search-icon { color: #e05a1c; font-size: 23px; line-height: 1; transform: rotate(-20deg); }
+        .gf-problem-search { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #f3f3f3; font: inherit; font-size: 12px; }
+        .gf-problem-search::placeholder { color: #707070; }
+        .gf-problem-search::-webkit-search-cancel-button { display: none; }
+        .gf-search-clear { border: 0; background: transparent; color: #888; font-size: 19px; cursor: pointer; }
+        .gf-search-clear:hover { color: #fff; }
+        .gf-filter-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: #191919; }
+        .gf-filter-wrap > span { color: #777; font-size: 10px; white-space: nowrap; }
+        .gf-difficulty-filter { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #eee; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+        .gf-difficulty-filter option { background: #191919; color: #fff; }
+        .gf-modal-list { min-height: 120px; padding: 5px 16px 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #555 #151515; scrollbar-width: thin; }
+        .gf-modal-problem { display: grid; grid-template-columns: 34px minmax(0, 1fr) 18px; gap: 12px; align-items: center; min-height: 43px; padding: 10px 8px; color: #d7d7d7; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.055); border-radius: 4px; font-size: 12px; transition: background .15s ease, color .15s ease; }
+        .gf-modal-problem:hover { color: #fff; background: rgba(255,255,255,0.045); }
+        .gf-modal-index { color: #686868; font-size: 10px; font-variant-numeric: tabular-nums; }
+        .gf-problem-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gf-modal-arrow { color: #e05a1c; text-align: right; }
+        .gf-modal-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 38px 16px; color: #888; text-align: center; font-size: 12px; }
+        .gf-modal-empty strong { color: #ddd; font-size: 14px; }
+        .gf-empty-icon { color: #e05a1c; font-size: 30px; line-height: 1; }
+        .gf-modal-empty button { margin-top: 5px; padding: 7px 12px; border: 1px solid rgba(224,90,28,0.35); border-radius: 8px; background: rgba(224,90,28,0.1); color: #ff986a; font: inherit; cursor: pointer; }
+        .gf-modal-foot { padding: 10px 24px 12px; border-top: 1px solid rgba(255,255,255,0.06); color: #666; font-size: 10px; text-align: center; }
+        .gf-modal-foot span { color: #e05a1c; }
+        .gf-view-all { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 12px; border: 1px dashed rgba(224,90,28,0.35); border-radius: 9px; background: rgba(224,90,28,0.055); color: #ff986a; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; transition: background .18s, border-color .18s; }
+        .gf-view-all:hover { background: rgba(224,90,28,0.12); border-color: rgba(224,90,28,0.65); }
+        @media (max-width: 600px) {
+          .gf-modal-backdrop { padding: 10px; }
+          .gf-modal { max-height: 88vh; }
+          .gf-modal-head { padding: 18px 16px 14px; }
+          .gf-modal-tools { grid-template-columns: 1fr; padding: 12px 16px; }
+          .gf-filter-wrap { min-height: 40px; }
+          .gf-modal-list { padding: 5px 10px 12px; }
+          .gf-modal-foot { padding-inline: 12px; }
+        }
 .gf-tile { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 14px; }
         .gf-tile-label { font-weight: 600; font-size: 13px; }
         .gf-tile-value { font-weight: 700; font-size: 15px; margin-top: 4px; }
