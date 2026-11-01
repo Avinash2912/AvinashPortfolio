@@ -481,8 +481,52 @@ const parseGfgTopics = (j) => {
   return list.length ? list : null;
 };
 
+// Parse the solved-problems endpoint, retaining each question's title, URL and difficulty.
+const parseGfgSolvedProblems = (j) => {
+  const problems = Array.isArray(j?.problems) ? j.problems : Array.isArray(j?.data?.problems) ? j.data.problems : [];
+  return problems
+    .filter((p) => p && typeof p.question === 'string')
+    .map((p) => ({
+      question: p.question,
+      questionUrl: typeof p.questionUrl === 'string' ? p.questionUrl : null,
+      difficulty: String(p.difficulty ?? '').trim().toLowerCase(),
+      slug: p.slug ?? null,
+    }));
+};
+
+// GFG problem pages in this profile use the /1 route suffix.
+const getGfgQuestionUrl = (problem) => {
+  const base = problem?.questionUrl || (problem?.slug
+    ? `https://www.geeksforgeeks.org/problems/${problem.slug}`
+    : '');
+  if (!base) return undefined;
+  const clean = base.replace(/\/+$/, '');
+  return /\/1$/.test(clean) ? clean : `${clean}/1`;
+};
+
 // Every request runs in parallel; each one fills in whatever it can.
 const GFG_JOBS = [
+  {
+    url: (u) => `https://gfg-stats.tashif.codes/${u}/solved-problems`,
+    apply: (j, p) => {
+      const problems = parseGfgSolvedProblems(j);
+      const raw = j?.problemsByDifficulty ?? {};
+      const diffs = {};
+      GFG_DIFF_META.forEach((m) => {
+        const count = strictNum(raw[m.key]);
+        if (count !== null) diffs[m.key] = count;
+      });
+      return {
+        ...p,
+        solvedProblems: problems,
+        summary: p.summary
+          ? mergeGfg(p.summary, { solved: strictNum(j?.totalProblemsSolved), diffs })
+          : (strictNum(j?.totalProblemsSolved) !== null || Object.keys(diffs).length
+              ? { solved: strictNum(j?.totalProblemsSolved), diffs }
+              : p.summary),
+      };
+    },
+  },
   { url: (u) => `${GFG_BASE}/${u}`, apply: (j, p) => ({ ...p, summary: mergeGfg(p.summary, parseGfgSummary(j)) }) },
   { url: (u) => `${GFG_BASE}/${u}/profile`, apply: (j, p) => ({ ...p, summary: mergeGfg(p.summary, parseGfgSummary(j)) }) },
   {
@@ -1343,8 +1387,13 @@ const GfgHeatmap = ({ days }) => {
 };
 
 // Donut: each difficulty gets an arc proportional to how many problems were solved in it.
-const GfgDifficulty = ({ solved, tiles, diffs, institute }) => {
+const GfgDifficulty = ({ solved, tiles, diffs, institute, problems = [] }) => {
   const [focused, setFocused] = useState(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null);
+  const selectedMeta = GFG_DIFF_META.find((m) => m.key === selectedDifficulty) ?? null;
+  const selectedProblems = selectedDifficulty
+    ? problems.filter((problem) => problem.difficulty === selectedDifficulty)
+    : [];
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -1404,10 +1453,13 @@ const GfgDifficulty = ({ solved, tiles, diffs, institute }) => {
 
         <div className="gf-diff-tiles">
           {tiles.map((m) => (
-            <div
+            <button
+              type="button"
               key={m.key}
-              className="gf-tile"
+              className="gf-tile gf-tile-button"
               tabIndex={0}
+              onClick={() => setSelectedDifficulty(m.key)}
+              aria-label={`View ${diffs[m.key]} ${m.label} solved problems`}
               onMouseEnter={() => setFocused(m.key)}
               onMouseLeave={() => setFocused(null)}
               onFocus={() => setFocused(m.key)}
@@ -1419,15 +1471,39 @@ const GfgDifficulty = ({ solved, tiles, diffs, institute }) => {
                 {diffs[m.key]}
                 {total > 0 && <span className="gf-tile-pct">{Math.round((diffs[m.key] / total) * 100)}%</span>}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {selectedMeta && (
+        <div className="gf-modal-backdrop" role="presentation" onClick={() => setSelectedDifficulty(null)}>
+          <div className="gf-modal" role="dialog" aria-modal="true" aria-labelledby="gf-modal-title" onClick={(e) => e.stopPropagation()}>
+            <div className="gf-modal-head">
+              <div>
+                <div className="gf-modal-kicker">GeeksforGeeks · Solved problems</div>
+                <h3 id="gf-modal-title" style={{ color: selectedMeta.color }}>{selectedMeta.label}</h3>
+                <p>{selectedProblems.length} problems solved</p>
+              </div>
+              <button type="button" className="gf-modal-close" onClick={() => setSelectedDifficulty(null)} aria-label="Close">×</button>
+            </div>
+            <div className="gf-modal-list">
+              {selectedProblems.length ? selectedProblems.map((problem, index) => (
+                <a className="gf-modal-problem" href={getGfgQuestionUrl(problem)} target="_blank" rel="noreferrer" key={`${problem.slug || problem.question}-${index}`}>
+                  <span className="gf-modal-index">{String(index + 1).padStart(2, '0')}</span>
+                  <span>{problem.question}</span>
+                  <span className="gf-modal-arrow">↗</span>
+                </a>
+              )) : <div className="gf-modal-empty">No problem details available for this difficulty.</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-const GfgStats = ({ summary, heat, topics }) => {
+const GfgStats = ({ summary, heat, topics, problems }) => {
   const { solved, diffs } = summary;
 
   const tiles = GFG_DIFF_META.filter((m) => diffs[m.key] != null);
@@ -1447,7 +1523,7 @@ const GfgStats = ({ summary, heat, topics }) => {
       <div className="gf-top">
         <div className="gf-card">
           {tiles.length > 0 ? (
-            <GfgDifficulty solved={solved} tiles={tiles} diffs={diffs} institute={summary.institute} />
+            <GfgDifficulty solved={solved} tiles={tiles} diffs={diffs} institute={summary.institute} problems={problems} />
           ) : (
             <>
               <div className="gf-solved-num">{solved}</div>
@@ -1623,7 +1699,7 @@ const CodingProfiles = () => {
   }, [contestData, lcParts.extras]);
 
   /* GeeksforGeeks: merge whatever each endpoint returns as it arrives */
-  const [gfgParts, setGfgParts] = useState({ summary: null, heat: null, topics: null });
+  const [gfgParts, setGfgParts] = useState({ summary: null, heat: null, topics: null, solvedProblems: [] });
   const [gfgDone, setGfgDone] = useState(false);
 
   useEffect(() => {
@@ -1805,7 +1881,25 @@ const CodingProfiles = () => {
         .gf-solved-num { font-size: 2.6rem; line-height: 1; letter-spacing: -0.04em; font-family: 'Neue Machina', 'Manrope', sans-serif; }
         .gf-solved-label { margin-top: 6px; font-size: 0.78rem; color: #a8a8a8; }
         .gf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; margin-top: 16px; }
-        .gf-tile { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 14px; }
+        
+        .gf-tile-button { width: 100%; color: inherit; text-align: left; font: inherit; cursor: pointer; transition: border-color 160ms, background 160ms, transform 160ms; }
+        .gf-tile-button:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
+        .gf-tile-button:focus-visible { outline: 2px solid #e05a1c; outline-offset: 3px; }
+        .gf-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,0.78); backdrop-filter: blur(8px); }
+        .gf-modal { width: min(620px, 100%); max-height: min(78vh, 760px); display: flex; flex-direction: column; overflow: hidden; background: #101010; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,0.55); }
+        .gf-modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .gf-modal-kicker { color: #999; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+        .gf-modal-head h3 { margin: 5px 0 2px; font-size: 22px; }
+        .gf-modal-head p { margin: 0; color: #999; font-size: 12px; }
+        .gf-modal-close { border: 0; background: rgba(255,255,255,0.08); color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 22px; cursor: pointer; }
+        .gf-modal-list { padding: 8px 18px 18px; overflow-y: auto; }
+        .gf-modal-problem { display: grid; grid-template-columns: 34px 1fr 18px; gap: 12px; align-items: center; padding: 12px 8px; color: #e5e5e5; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; }
+        .gf-modal-problem:hover { color: #fff; background: rgba(255,255,255,0.04); }
+        .gf-modal-index { color: #777; font-size: 11px; font-variant-numeric: tabular-nums; }
+        .gf-modal-arrow { color: #e05a1c; }
+        .gf-modal-empty { padding: 24px 8px; color: #999; text-align: center; font-size: 13px; }
+        @media (max-width: 600px) { .gf-modal-backdrop { padding: 10px; } .gf-modal-head { padding: 18px 16px 14px; } .gf-modal-list { padding: 6px 12px 14px; } }
+.gf-tile { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 14px; }
         .gf-tile-label { font-weight: 600; font-size: 13px; }
         .gf-tile-value { font-weight: 700; font-size: 15px; margin-top: 4px; }
         .gf-topics-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: #a8a8a8; margin-bottom: 6px; }
@@ -1929,7 +2023,7 @@ const CodingProfiles = () => {
               </div>
 
               {gfgStatus === 'ready' && (
-                <GfgStats summary={gfgView} heat={gfgParts.heat} topics={gfgParts.topics} />
+                <GfgStats summary={gfgView} heat={gfgParts.heat} topics={gfgParts.topics} problems={gfgParts.solvedProblems} />
               )}
               {gfgStatus === 'loading' && <div className="cp-empty">Loading GeeksforGeeks stats…</div>}
               {gfgStatus === 'error' && (
